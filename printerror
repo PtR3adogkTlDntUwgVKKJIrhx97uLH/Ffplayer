@@ -3615,21 +3615,33 @@ if fallDamageModule then
     end
 end
 
-MovementRight2:AddToggle('NofallDamage1', {
-    Text = 'No fall Damage1',
+MovementRight2:AddToggle({
+    Name = "No Fall Damage1",
     Default = false,
-    Callback = function(Value)
-        if Value then
-            connection = runService.RenderStepped:Connect(function()
-                if humanoid and humanoid.Health > 0 then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
-                    humanoid:ChangeState(Enum.HumanoidStateType.Running)
+    Callback = function(state)
+        noFallDamageEnabled = state
+
+        if state then
+            if me.Character then
+                ff = Instance.new("ForceField")
+                ff.Parent = me.Character
+                ff.Visible = false
+            end
+
+            me.CharacterAdded:Connect(function(char)
+                if noFallDamageEnabled and char and char:WaitForChild("HumanoidRootPart") and char:WaitForChild("Humanoid") then
+                    ff = Instance.new("ForceField")
+                    ff.Parent = char
+                    ff.Visible = false
                 end
             end)
         else
-            if connection then
-                connection:Disconnect()
-                connection = nil
+            if me.Character then
+                for _, a in pairs(me.Character:GetChildren()) do
+                    if a:IsA("ForceField") and a.Visible == false then
+                        a:Destroy()
+                    end
+                end
             end
         end
     end
@@ -3644,18 +3656,13 @@ EventDrown = game:GetService("ReplicatedStorage"):FindFirstChild("Events") and g
 
 originalFallRagdollParent = EventFallRagdoll and EventFallRagdoll.Parent
 originalDrownParent = EventDrown and EventDrown.Parent
-originalEventName = EventFallRagdoll and EventFallRagdoll.Name
-dummyEvent = nil
 
 function updateEvents()
     if EventFallRagdoll then
-        if DisableRagdoll then
+        if DisableRagdoll or DisableFallDamage then
             EventFallRagdoll.Parent = nil
         else
             EventFallRagdoll.Parent = originalFallRagdollParent
-            if not DisableFallDamage then
-                EventFallRagdoll.Name = originalEventName
-            end
         end
     end
     
@@ -3664,21 +3671,6 @@ function updateEvents()
             EventDrown.Parent = nil
         else
             EventDrown.Parent = originalDrownParent
-        end
-    end
-    
-    if DisableFallDamage and EventFallRagdoll and EventFallRagdoll.Parent then
-        if not dummyEvent then
-            dummyEvent = Instance.new("RemoteEvent")
-            dummyEvent.Name = "__RZDONL_Dummy"
-            dummyEvent.Parent = EventFallRagdoll.Parent
-        end
-        EventFallRagdoll.Name = "__RZDONL_FallBlocked"
-        dummyEvent.Name = "__RZDONL"
-    elseif not DisableFallDamage and EventFallRagdoll and EventFallRagdoll.Parent then
-        if dummyEvent then
-            dummyEvent.Name = "__RZDONL_Dummy"
-            EventFallRagdoll.Name = originalEventName
         end
     end
 end
@@ -3715,7 +3707,6 @@ game:GetService("RunService").Heartbeat:Connect(function()
         EventFallRagdoll = game:GetService("ReplicatedStorage"):FindFirstChild("Events") and game:GetService("ReplicatedStorage").Events:FindFirstChild("__RZDONL")
         if EventFallRagdoll then
             originalFallRagdollParent = EventFallRagdoll.Parent
-            originalEventName = EventFallRagdoll.Name
             updateEvents()
         end
     end
@@ -3727,7 +3718,7 @@ game:GetService("RunService").Heartbeat:Connect(function()
         end
     end
     
-    if EventFallRagdoll and EventFallRagdoll.Parent and DisableRagdoll then
+    if EventFallRagdoll and EventFallRagdoll.Parent and (DisableRagdoll or DisableFallDamage) then
         EventFallRagdoll.Parent = nil
     end
     if EventDrown and EventDrown.Parent and DisableDrown then
