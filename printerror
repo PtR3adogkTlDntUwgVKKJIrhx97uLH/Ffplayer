@@ -3596,57 +3596,6 @@ InfStaminaToggle = MovementRight2:AddToggle('InfStaminaToggle', {
     end
 })
 
-player = game:GetService("Players").LocalPlayer
-character = player.Character or player.CharacterAdded:Wait()
-humanoid = character:WaitForChild("Humanoid")
-runService = game:GetService("RunService")
-replicatedStorage = game:GetService("ReplicatedStorage")
-
-player.CharacterAdded:Connect(function(newCharacter)
-    character = newCharacter
-    humanoid = character:WaitForChild("Humanoid")
-end)
-
-fallDamageModule = replicatedStorage:FindFirstChild("FallDamageModule")
-if fallDamageModule then
-    fallDamage = require(fallDamageModule)
-    if type(fallDamage) == "table" and fallDamage.FallDamage then
-        fallDamage.FallDamage = function() return 0 end
-    end
-end
-
-MovementRight2:AddToggle({
-    Name = "No Fall Damage1",
-    Default = false,
-    Callback = function(state)
-        noFallDamageEnabled = state
-
-        if state then
-            if me.Character then
-                ff = Instance.new("ForceField")
-                ff.Parent = me.Character
-                ff.Visible = false
-            end
-
-            me.CharacterAdded:Connect(function(char)
-                if noFallDamageEnabled and char and char:WaitForChild("HumanoidRootPart") and char:WaitForChild("Humanoid") then
-                    ff = Instance.new("ForceField")
-                    ff.Parent = char
-                    ff.Visible = false
-                end
-            end)
-        else
-            if me.Character then
-                for _, a in pairs(me.Character:GetChildren()) do
-                    if a:IsA("ForceField") and a.Visible == false then
-                        a:Destroy()
-                    end
-                end
-            end
-        end
-    end
-})
-
 DisableFallDamage = false
 DisableRagdoll = false
 DisableDrown = false
