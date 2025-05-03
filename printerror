@@ -81,7 +81,7 @@ MainLeft = Tabs.Main:AddLeftGroupbox('Main')
 CodersButton = MainLeft:AddButton({
     Text = "Coders",
     Func = function()
-        warn("Coders script: family_aks, also too glipi and thx hubstudioinjection for fling, esp")
+        warn("Coders script: family_aks, thx hubstudioinjection for fling, esp and thx imbetter1_1 for free key system, infinite stamina, long fly and more scripts!!")
     end
 })
 
@@ -1587,6 +1587,19 @@ HealthBarObjects = {}
 LastUpdateTime = 0
 UpdateInterval = 0.2
 LastWhiteList = {}
+ChamsToggle = false
+VisibleColor = Color3.fromRGB(255, 0, 0)
+OccludedColor = Color3.fromRGB(255, 255, 255)
+HighlightsToggle = false
+FillColor = Color3.fromRGB(0, 0, 0)
+OutlineColor = Color3.fromRGB(0, 0, 0)
+SelfHighlightToggle = false
+SelfFillColor = Color3.fromRGB(0, 255, 0)
+SelfOutlineColor = Color3.fromRGB(0, 255, 0)
+PlayerAdornments = {}
+SelfHighlight = Instance.new("Highlight")
+SelfHighlight.Parent = game:GetService("CoreGui")
+SelfHighlight.Enabled = false
 
 weaponImages = {
     ["3-CBSTM"] = "rbxassetid://18760010762",
@@ -2009,6 +2022,34 @@ function CreateChinaHat(character)
     ChinaHats[character] = cone
 end
 
+function CreateAdornments(part)
+    Adornments = {}
+    for vis = 1, 2 do
+        if part.Name == "Head" then
+            Adornments[vis] = Instance.new("CylinderHandleAdornment")
+            Adornments[vis].Height = 1.2
+            Adornments[vis].Radius = 0.78
+            Adornments[vis].CFrame = CFrame.new(Vector3.new(), Vector3.new(0, 1, 0))
+            if vis == 1 then
+                Adornments[vis].Radius = Adornments[vis].Radius - 0.15
+                Adornments[vis].Height = Adornments[vis].Height - 0.15
+            end
+        else
+            Adornments[vis] = Instance.new("BoxHandleAdornment")
+            Adornments[vis].Size = part.Size + Vector3.new(0.2, 0.2, 0.2)
+            if vis == 1 then
+                Adornments[vis].Size = Adornments[vis].Size - Vector3.new(0.15, 0.15, 0.15)
+            end
+        end
+        Adornments[vis].Parent = game:GetService("CoreGui")
+        Adornments[vis].Adornee = part
+        Adornments[vis].Name = vis == 1 and "Invisible" or "Visible"
+        Adornments[vis].ZIndex = vis == 1 and 2 or 1
+        Adornments[vis].AlwaysOnTop = vis == 1
+    end
+    return Adornments
+end
+
 function GetPlayerData(player)
     if not PlayerData[player] then
         PlayerData[player] = {Weapon = "", Inventory = {}, Health = 100}
@@ -2052,6 +2093,17 @@ function ClearESP()
         hat:Destroy()
     end
     ChinaHats = {}
+    for _, player in pairs(PlayerAdornments) do
+        player.Highlight.Enabled = false
+        player.Highlight.Adornee = nil
+        for _, adornmentsTable in pairs(player.Adornments) do
+            for _, adornment in pairs(adornmentsTable) do
+                adornment.Visible = false
+            end
+        end
+    end
+    SelfHighlight.Enabled = false
+    SelfHighlight.Adornee = nil
 end
 
 function CountItems(items)
@@ -2416,7 +2468,7 @@ function UpdateChinaHat()
                     if not ChinaHats[player.Character] then
                         CreateChinaHat(player.Character)
                     else
-                        local highlight = ChinaHats[player.Character]:FindFirstChildOfClass("Highlight")
+                        highlight = ChinaHats[player.Character]:FindFirstChildOfClass("Highlight")
                         if highlight then
                             highlight.FillColor = ChinaHatColor
                             highlight.OutlineColor = ChinaHatColor
@@ -2437,11 +2489,131 @@ function UpdateChinaHat()
     end
 end
 
+function UpdateVisuals()
+    if not ESPEnabled then
+        for _, player in pairs(PlayerAdornments) do
+            player.Highlight.Enabled = false
+            player.Highlight.Adornee = nil
+            for _, adornmentsTable in pairs(player.Adornments) do
+                for _, adornment in pairs(adornmentsTable) do
+                    adornment.Visible = false
+                end
+            end
+        end
+        SelfHighlight.Enabled = false
+        SelfHighlight.Adornee = nil
+        return
+    end
+
+    LocalPlayer = game.Players.LocalPlayer
+    LocalRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not LocalRoot then 
+        SelfHighlight.Enabled = false
+        SelfHighlight.Adornee = nil
+        return 
+    end
+
+    if SelfHighlightToggle and ESPEnabled and LocalPlayer.Character then
+        SelfHighlight.Adornee = LocalPlayer.Character
+        SelfHighlight.Enabled = true
+        SelfHighlight.FillColor = SelfFillColor
+        SelfHighlight.OutlineColor = SelfOutlineColor
+        SelfHighlight.FillTransparency = 0
+        SelfHighlight.OutlineTransparency = 0
+    else
+        SelfHighlight.Enabled = false
+        SelfHighlight.Adornee = nil
+    end
+
+    for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+        if player == LocalPlayer then continue end
+
+        if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+            if PlayerAdornments[player] then
+                PlayerAdornments[player].Highlight.Enabled = false
+                PlayerAdornments[player].Highlight.Adornee = nil
+                for _, adornmentsTable in pairs(PlayerAdornments[player].Adornments) do
+                    for _, adornment in pairs(adornmentsTable) do
+                        adornment.Visible = false
+                    end
+                end
+            end
+            continue
+        end
+
+        Distance = (player.Character.HumanoidRootPart.Position - LocalRoot.Position).Magnitude
+        if Distance > ESPDistance or (TeamCheck and LocalPlayer.Team and player.Team == LocalPlayer.Team) then
+            if PlayerAdornments[player] then
+                PlayerAdornments[player].Highlight.Enabled = false
+                PlayerAdornments[player].Highlight.Adornee = nil
+                for _, adornmentsTable in pairs(PlayerAdornments[player].Adornments) do
+                    for _, adornment in pairs(adornmentsTable) do
+                        adornment.Visible = false
+                    end
+                end
+            end
+            continue
+        end
+
+        if not PlayerAdornments[player] then
+            PlayerAdornments[player] = {
+                Highlight = Instance.new("Highlight"),
+                Adornments = {},
+                NeedsUpdate = true,
+                LastUpdate = 0
+            }
+            PlayerAdornments[player].Highlight.Parent = game:GetService("CoreGui")
+            PlayerAdornments[player].Highlight.Enabled = false
+        end
+
+        if HighlightsToggle and ESPEnabled then
+            PlayerAdornments[player].Highlight.Enabled = true
+            PlayerAdornments[player].Highlight.FillColor = FillColor
+            PlayerAdornments[player].Highlight.OutlineColor = OutlineColor
+            PlayerAdornments[player].Highlight.FillTransparency = 0
+            PlayerAdornments[player].Highlight.OutlineTransparency = 0
+            PlayerAdornments[player].Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            PlayerAdornments[player].Highlight.Adornee = player.Character
+        else
+            PlayerAdornments[player].Highlight.Enabled = false
+            PlayerAdornments[player].Highlight.Adornee = nil
+        end
+
+        if ChamsToggle then
+            if PlayerAdornments[player].NeedsUpdate or (tick() - PlayerAdornments[player].LastUpdate > 30) then
+                for _, part in pairs(player.Character:GetChildren()) do
+                    if part:IsA("BasePart") and table.find({"Head", "Torso", "Left Arm", "Right Arm", "Left Leg", "Right Leg"}, part.Name) then
+                        if not PlayerAdornments[player].Adornments[part] then
+                            PlayerAdornments[player].Adornments[part] = CreateAdornments(part)
+                        end
+                        PlayerAdornments[player].Adornments[part][1].Visible = true
+                        PlayerAdornments[player].Adornments[part][1].Color3 = OccludedColor
+                        PlayerAdornments[player].Adornments[part][1].Transparency = 0
+                        PlayerAdornments[player].Adornments[part][2].Visible = true
+                        PlayerAdornments[player].Adornments[part][2].Color3 = VisibleColor
+                        PlayerAdornments[player].Adornments[part][2].Transparency = 0.5
+                        PlayerAdornments[player].Adornments[part][2].AlwaysOnTop = false
+                        PlayerAdornments[player].Adornments[part][2].ZIndex = 1
+                    end
+                end
+                PlayerAdornments[player].NeedsUpdate = false
+                PlayerAdornments[player].LastUpdate = tick()
+            end
+        else
+            for _, adornmentsTable in pairs(PlayerAdornments[player].Adornments) do
+                for _, adornment in pairs(adornmentsTable) do
+                    adornment.Visible = false
+                end
+            end
+        end
+    end
+end
+
 function HasWhiteListChanged()
     if not GlobalWhiteList or not type(GlobalWhiteList) == "table" then
         GlobalWhiteList = {}
     end
-    local currentWhiteList = {}
+    currentWhiteList = {}
     for _, name in pairs(GlobalWhiteList) do
         table.insert(currentWhiteList, name)
     end
@@ -2467,8 +2639,40 @@ ESPEnabledToggle = VisualsLeft:AddToggle('ESPEnabled', {
     Default = false,
     Callback = function(Value)
         ESPEnabled = Value
-        if not Value then ClearESP() end
+        if Value then
+            ChamsToggle = false
+            SelfHighlightToggle = false
+            HighlightsToggle = false
+            for _, player in pairs(PlayerAdornments) do
+                player.Highlight.Enabled = false
+                player.Highlight.Adornee = nil
+                for _, adornmentsTable in pairs(player.Adornments) do
+                    for _, adornment in pairs(adornmentsTable) do
+                        adornment.Visible = false
+                    end
+                end
+            end
+            SelfHighlight.Enabled = false
+            SelfHighlight.Adornee = nil
+        else
+            ClearESP()
+            ChamsToggle = false
+            SelfHighlightToggle = false
+            HighlightsToggle = false
+            for _, player in pairs(PlayerAdornments) do
+                player.Highlight.Enabled = false
+                player.Highlight.Adornee = nil
+                for _, adornmentsTable in pairs(player.Adornments) do
+                    for _, adornment in pairs(adornmentsTable) do
+                        adornment.Visible = false
+                    end
+                end
+            end
+            SelfHighlight.Enabled = false
+            SelfHighlight.Adornee = nil
+        end
         UpdateESP()
+        UpdateVisuals()
     end
 })
 
@@ -2478,6 +2682,7 @@ TeamCheckToggle = VisualsLeft:AddToggle('TeamCheck', {
     Callback = function(Value)
         TeamCheck = Value
         UpdateESP()
+        UpdateVisuals()
     end
 })
 
@@ -2628,12 +2833,124 @@ ShowChinaHatToggle = VisualsLeft:AddToggle('ShowChinaHat', {
     Callback = function(Value)
         ChinaHatColor = Value
         for character, hat in pairs(ChinaHats) do
-            local highlight = hat:FindFirstChildOfClass("Highlight")
+            highlight = hat:FindFirstChildOfClass("Highlight")
             if highlight then
                 highlight.FillColor = Value
                 highlight.OutlineColor = Value
             end
         end
+    end
+})
+
+ChamsToggle = VisualsLeft:AddToggle('ChamsToggle', {
+    Text = "Chams",
+    Default = false,
+    Callback = function(Value)
+        ChamsToggle = Value
+        for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+            if PlayerAdornments[player] then
+                PlayerAdornments[player].NeedsUpdate = true
+            end
+        end
+        UpdateVisuals()
+    end
+})
+
+ChamsToggle:AddColorPicker('VisibleColor', {
+    Default = Color3.fromRGB(255, 0, 0),
+    Title = "Visible Color",
+    Transparency = 0.5,
+    Callback = function(Value)
+        VisibleColor = Value
+        for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+            if PlayerAdornments[player] then
+                PlayerAdornments[player].NeedsUpdate = true
+            end
+        end
+        UpdateVisuals()
+    end
+})
+
+ChamsToggle:AddColorPicker('OccludedColor', {
+    Default = Color3.fromRGB(255, 255, 255),
+    Title = "Occluded Color",
+    Transparency = 0,
+    Callback = function(Value)
+        OccludedColor = Value
+        for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+            if PlayerAdornments[player] then
+                PlayerAdornments[player].NeedsUpdate = true
+            end
+        end
+        UpdateVisuals()
+    end
+})
+
+HighlightsToggle = VisualsLeft:AddToggle('HighlightsToggle', {
+    Text = "Highlights",
+    Default = false,
+    Callback = function(Value)
+        HighlightsToggle = Value
+        for _, player in pairs(PlayerAdornments) do
+            player.Highlight.Enabled = false
+            player.Highlight.Adornee = nil
+        end
+        UpdateVisuals()
+    end
+})
+
+HighlightsToggle:AddColorPicker('FillColor', {
+    Default = Color3.fromRGB(0, 0, 0),
+    Title = "Fill Color",
+    Transparency = 0,
+    Callback = function(Value)
+        FillColor = Value
+        UpdateVisuals()
+    end
+})
+
+HighlightsToggle:AddColorPicker('OutlineColor', {
+    Default = Color3.fromRGB(0, 0, 0),
+    Title = "Outline Color",
+    Transparency = 0,
+    Callback = function(Value)
+        OutlineColor = Value
+        UpdateVisuals()
+    end
+})
+
+SelfHighlightToggle = VisualsLeft:AddToggle('SelfHighlightToggle', {
+    Text = "Self Highlight",
+    Default = false,
+    Callback = function(Value)
+        SelfHighlightToggle = Value
+        SelfHighlight.Enabled = false
+        SelfHighlight.Adornee = nil
+        UpdateVisuals()
+    end
+})
+
+SelfHighlightToggle:AddColorPicker('SelfFillColor', {
+    Default = Color3.fromRGB(0, 255, 0),
+    Title = "Self Fill Color",
+    Transparency = 0,
+    Callback = function(Value)
+        SelfFillColor = Value
+        SelfHighlight.FillColor = Value
+        SelfHighlight.FillTransparency = 0
+        UpdateVisuals()
+    end
+})
+
+SelfHighlightToggle:AddColorPicker('SelfOutlineColor', {
+    Default = Color3.fromRGB(0, 255, 0),
+    Title = "Self Outline Color",
+    Transparency = 0,
+    Callback = function(Value)
+        SelfOutlineColor = Value
+        SelfHighlight.OutlineColor = Value
+        SelfHighlight.OutlineTransparency = 0
+        UpdateVisuals()
     end
 })
 
@@ -2645,9 +2962,15 @@ ESPDistanceSlider = VisualsLeft:AddSlider('ESPDistance', {
     Rounding = 0,
     Callback = function(Value)
         ESPDistance = Value
+        for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+            if PlayerAdornments[player] then
+                PlayerAdornments[player].NeedsUpdate = true
+            end
+        end
         UpdateESP()
         UpdateLookDirection()
         UpdateDynamicESP()
+        UpdateVisuals()
     end
 })
 
@@ -2673,6 +2996,7 @@ game:GetService("RunService").RenderStepped:Connect(function()
         UpdateESP()
     end
     UpdateChinaHat()
+    UpdateVisuals()
 end)
 
 game.Players.PlayerRemoving:Connect(function(player)
@@ -2705,6 +3029,15 @@ game.Players.PlayerRemoving:Connect(function(player)
             ChinaHats[player.Character] = nil
         end
     end
+    if PlayerAdornments[player] then
+        PlayerAdornments[player].Highlight:Destroy()
+        for _, adornmentsTable in pairs(PlayerAdornments[player].Adornments) do
+            for _, adornment in pairs(adornmentsTable) do
+                adornment:Destroy()
+            end
+        end
+        PlayerAdornments[player] = nil
+    end
 end)
 
 game.Players.PlayerAdded:Connect(function(player)
@@ -2714,6 +3047,7 @@ game.Players.PlayerAdded:Connect(function(player)
         UpdateLookDirection()
         UpdateDynamicESP()
         UpdateChinaHat()
+        UpdateVisuals()
     end)
 end)
 
@@ -2960,10 +3294,71 @@ ESPTextSizeSlider = VisualsRight:AddSlider('ESPTextSize', {
     end
 })
 
+Players = game:GetService('Players')
+LocalPlayer = Players.LocalPlayer
+Camera = workspace.CurrentCamera
+
+HUD = {
+    Enabled = false,
+    Style = 'Compact',
+    Color = Color3.fromRGB(255, 0, 0),
+    Font = Enum.Font.Gotham,
+    Target = nil,
+    GUI = nil,
+    Frame = nil,
+    NameLabel = nil,
+    HealthBar = nil,
+    HealthBarFill = nil,
+    HealthLabel = nil,
+    DistanceLabel = nil,
+    LastUpdate = 0,
+    MousePos = nil,
+    Ray = nil,
+    RaycastParams = nil,
+    RaycastResult = nil,
+    HitPart = nil,
+    Character = nil,
+    Player = nil,
+    OnScreen = false,
+    CameraCFrame = nil,
+    CameraPos = nil,
+    CameraForward = nil,
+    TargetPos = nil,
+    VectorToTarget = nil,
+    Distance = nil,
+    Angle = nil,
+    ClosestPlayer = nil,
+    MinDistance = math.huge,
+    ViewModel = nil,
+    Tool = nil,
+    Hitmarker = nil,
+    HitmarkerConnection = nil,
+    HitPlayer = nil,
+    Sound = nil,
+    CenterX = nil,
+    CenterY = nil,
+    Horizontal = nil,
+    Vertical = nil,
+    Cam = nil,
+    CurrentLookVector = nil,
+    LastLookVector = nil,
+    RotationSpeed = nil,
+    BlurConnection = nil,
+    IsFirstPerson = false,
+    FOVAngle = math.rad(35 / 2),
+    OnScreenRoot = false,
+    OnScreenHead = false,
+    OnScreenTorso = false,
+    OnScreenUpperTorso = false,
+    OnScreenLowerTorso = false,
+    RigType = nil,
+    BoundingBoxPoints = {}
+}
+
 ViewmodelSettings = {Enabled = false, Color = Color3.new(1, 1, 1), ClockTime = 12}
 CrosshairParts = {}
 HeadshotSettings = {Enabled = false, SoundId = 5650646664, Volume = 1}
-CustomFOV = workspace.CurrentCamera.FieldOfView
+CustomFOV = Camera.FieldOfView
 
 HitmarkerSounds = {
     Boink = 5451260445,
@@ -2974,27 +3369,580 @@ HitmarkerSounds = {
     Fortnite = 296102734
 }
 
+function ClearHUD()
+    if HUD.GUI and HUD.GUI:IsA('ScreenGui') then
+        HUD.GUI:Destroy()
+    end
+    HUD.GUI = nil
+    HUD.Frame = nil
+    HUD.NameLabel = nil
+    HUD.HealthBar = nil
+    HUD.HealthBarFill = nil
+    HUD.HealthLabel = nil
+    HUD.DistanceLabel = nil
+end
+
+function CreateCompactHUD(player)
+    ClearHUD()
+    if not HUD.Enabled or not player or not player.Character or not player.Character:FindFirstChild('Humanoid') then return end
+
+    HUD.GUI = Instance.new('ScreenGui')
+    HUD.GUI.Name = 'TargetHUD_' .. math.random(1000, 9999)
+    HUD.GUI.IgnoreGuiInset = true
+    HUD.GUI.Parent = LocalPlayer.PlayerGui
+    for i = 1, 10 do
+        if HUD.GUI then break end
+        task.wait(0.05)
+    end
+    if not HUD.GUI then return end
+
+    HUD.Frame = Instance.new('Frame', HUD.GUI)
+    for i = 1, 10 do
+        if HUD.Frame then break end
+        task.wait(0.05)
+    end
+    if not HUD.Frame then return end
+    HUD.Frame.Size = UDim2.new(0, 200, 0, 100)
+    HUD.Frame.Position = UDim2.new(0.5, -100, 0.75, -50)
+    HUD.Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    HUD.Frame.BackgroundTransparency = 0.2
+    HUD.Frame.Rotation = 0
+    Instance.new('UICorner', HUD.Frame).CornerRadius = UDim.new(0, 14)
+    Instance.new('UIGradient', HUD.Frame).Color = ColorSequence.new(HUD.Color, Color3.fromRGB(50, 50, 50))
+    Instance.new('UIGradient', HUD.Frame).Rotation = 45
+    Instance.new('UIStroke', HUD.Frame).Color = HUD.Color
+    Instance.new('UIStroke', HUD.Frame).Thickness = 3
+    game:GetService('TweenService'):Create(Instance.new('UIStroke', HUD.Frame), TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Transparency = 0.4}):Play()
+
+    HUD.NameLabel = Instance.new('TextLabel', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.NameLabel then break end
+        task.wait(0.05)
+    end
+    if not HUD.NameLabel then return end
+    HUD.NameLabel.Size = UDim2.new(0.85, 0, 0.25, 0)
+    HUD.NameLabel.Position = UDim2.new(0.075, 0, 0.05, 0)
+    HUD.NameLabel.Text = player.Name
+    HUD.NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HUD.NameLabel.BackgroundTransparency = 1
+    HUD.NameLabel.TextScaled = true
+    HUD.NameLabel.TextXAlignment = Enum.TextXAlignment.Center
+    HUD.NameLabel.Font = HUD.Font
+
+    HUD.HealthBar = Instance.new('Frame', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.HealthBar then break end
+        task.wait(0.05)
+    end
+    if not HUD.HealthBar then return end
+    HUD.HealthBar.Size = UDim2.new(0.85, 0, 0.3, 0)
+    HUD.HealthBar.Position = UDim2.new(0.075, 0, 0.35, 0)
+    HUD.HealthBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    HUD.HealthBar.ClipsDescendants = true
+    HUD.HealthBar.Rotation = 0
+    Instance.new('UICorner', HUD.HealthBar).CornerRadius = UDim.new(0, 10)
+
+    HUD.HealthBarFill = Instance.new('Frame', HUD.HealthBar)
+    for i = 1, 10 do
+        if HUD.HealthBarFill then break end
+        task.wait(0.05)
+    end
+    if not HUD.HealthBarFill then return end
+    HUD.HealthBarFill.Size = UDim2.new(player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth, 0, 1, 0)
+    HUD.HealthBarFill.BackgroundColor3 = HUD.Color:Lerp(Color3.fromRGB(0, 255, 0), player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth)
+    HUD.HealthBarFill.BorderSizePixel = 0
+    HUD.HealthBarFill.Rotation = 0
+    Instance.new('UICorner', HUD.HealthBarFill).CornerRadius = UDim.new(0, 10)
+    game:GetService('TweenService'):Create(HUD.HealthBarFill, TweenInfo.new(0.2), {Size = UDim2.new(player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth, 0, 1, 0)}):Play()
+
+    HUD.HealthLabel = Instance.new('TextLabel', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.HealthLabel then break end
+        task.wait(0.05)
+    end
+    if not HUD.HealthLabel then return end
+    HUD.HealthLabel.Size = UDim2.new(0.85, 0, 0.2, 0)
+    HUD.HealthLabel.Position = UDim2.new(0.075, 0, 0.7, 0)
+    HUD.HealthLabel.Text = string.format('HP: %.1f', player.Character.Humanoid.Health)
+    HUD.HealthLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HUD.HealthLabel.BackgroundTransparency = 1
+    HUD.HealthLabel.TextScaled = true
+    HUD.HealthLabel.TextXAlignment = Enum.TextXAlignment.Center
+    HUD.HealthLabel.Font = HUD.Font
+
+    HUD.DistanceLabel = Instance.new('TextLabel', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.DistanceLabel then break end
+        task.wait(0.05)
+    end
+    if not HUD.DistanceLabel then return end
+    HUD.DistanceLabel.Size = UDim2.new(0.85, 0, 0.15, 0)
+    HUD.DistanceLabel.Position = UDim2.new(0.075, 0, 0.85, 0)
+    HUD.DistanceLabel.Text = string.format('Dist: %.1f', (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('HumanoidRootPart') and (LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude) or 0)
+    HUD.DistanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HUD.DistanceLabel.BackgroundTransparency = 1
+    HUD.DistanceLabel.TextScaled = true
+    HUD.DistanceLabel.TextXAlignment = Enum.TextXAlignment.Center
+    HUD.DistanceLabel.Font = HUD.Font
+end
+
+function CreateModernHUD(player)
+    ClearHUD()
+    if not HUD.Enabled or not player or not player.Character or not player.Character:FindFirstChild('Humanoid') then return end
+
+    HUD.GUI = Instance.new('ScreenGui')
+    HUD.GUI.Name = 'TargetHUD_' .. math.random(1000, 9999)
+    HUD.GUI.IgnoreGuiInset = true
+    HUD.GUI.Parent = LocalPlayer.PlayerGui
+    for i = 1, 10 do
+        if HUD.GUI then break end
+        task.wait(0.05)
+    end
+    if not HUD.GUI then return end
+
+    HUD.Frame = Instance.new('Frame', HUD.GUI)
+    for i = 1, 10 do
+        if HUD.Frame then break end
+        task.wait(0.05)
+    end
+    if not HUD.Frame then return end
+    HUD.Frame.Size = UDim2.new(0, 220, 0, 110)
+    HUD.Frame.Position = UDim2.new(0.5, -110, 0.75, -55)
+    HUD.Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    HUD.Frame.BackgroundTransparency = 0.3
+    HUD.Frame.Rotation = 0
+    Instance.new('UIGradient', HUD.Frame).Color = ColorSequence.new(HUD.Color, Color3.fromRGB(50, 100, 255))
+    Instance.new('UIGradient', HUD.Frame).Rotation = 135
+    Instance.new('UICorner', HUD.Frame).CornerRadius = UDim.new(0, 50)
+    Instance.new('UIStroke', HUD.Frame).Color = HUD.Color
+    Instance.new('UIStroke', HUD.Frame).Thickness = 4
+    game:GetService('TweenService'):Create(Instance.new('UIStroke', HUD.Frame), TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Transparency = 0.3}):Play()
+
+    HUD.NameLabel = Instance.new('TextLabel', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.NameLabel then break end
+        task.wait(0.05)
+    end
+    if not HUD.NameLabel then return end
+    HUD.NameLabel.Size = UDim2.new(0.6, 0, 0.2, 0)
+    HUD.NameLabel.Position = UDim2.new(0.2, 0, 0.05, 0)
+    HUD.NameLabel.Text = player.Name
+    HUD.NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HUD.NameLabel.BackgroundTransparency = 1
+    HUD.NameLabel.TextScaled = true
+    HUD.NameLabel.TextXAlignment = Enum.TextXAlignment.Center
+    HUD.NameLabel.Font = HUD.Font
+
+    HUD.HealthBar = Instance.new('Frame', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.HealthBar then break end
+        task.wait(0.05)
+    end
+    if not HUD.HealthBar then return end
+    HUD.HealthBar.Size = UDim2.new(0.35, 0, 0.35, 0)
+    HUD.HealthBar.Position = UDim2.new(0.325, 0, 0.3, 0)
+    HUD.HealthBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    HUD.HealthBar.ClipsDescendants = true
+    HUD.HealthBar.Rotation = 0
+    Instance.new('UICorner', HUD.HealthBar).CornerRadius = UDim.new(1, 0)
+
+    HUD.HealthBarFill = Instance.new('Frame', HUD.HealthBar)
+    for i = 1, 10 do
+        if HUD.HealthBarFill then break end
+        task.wait(0.05)
+    end
+    if not HUD.HealthBarFill then return end
+    HUD.HealthBarFill.Size = UDim2.new(player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth, 0, 1, 0)
+    HUD.HealthBarFill.BackgroundColor3 = HUD.Color:Lerp(Color3.fromRGB(0, 255, 0), player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth)
+    HUD.HealthBarFill.BorderSizePixel = 0
+    HUD.HealthBarFill.Rotation = 0
+    Instance.new('UICorner', HUD.HealthBarFill).CornerRadius = UDim.new(1, 0)
+    game:GetService('TweenService'):Create(HUD.HealthBarFill, TweenInfo.new(0.2), {Size = UDim2.new(player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth, 0, 1, 0)}):Play()
+
+    HUD.HealthLabel = Instance.new('TextLabel', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.HealthLabel then break end
+        task.wait(0.05)
+    end
+    if not HUD.HealthLabel then return end
+    HUD.HealthLabel.Size = UDim2.new(0.6, 0, 0.2, 0)
+    HUD.HealthLabel.Position = UDim2.new(0.2, 0, 0.7, 0)
+    HUD.HealthLabel.Text = string.format('HP: %.1f%%', (player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth) * 100)
+    HUD.HealthLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HUD.HealthLabel.BackgroundTransparency = 1
+    HUD.HealthLabel.TextScaled = true
+    HUD.HealthLabel.TextXAlignment = Enum.TextXAlignment.Center
+    HUD.HealthLabel.Font = HUD.Font
+
+    HUD.DistanceLabel = Instance.new('TextLabel', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.DistanceLabel then break end
+        task.wait(0.05)
+    end
+    if not HUD.DistanceLabel then return end
+    HUD.DistanceLabel.Size = UDim2.new(0.6, 0, 0.15, 0)
+    HUD.DistanceLabel.Position = UDim2.new(0.2, 0, 0.85, 0)
+    HUD.DistanceLabel.Text = string.format('Dist: %.1f', (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('HumanoidRootPart') and (LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude) or 0)
+    HUD.DistanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HUD.DistanceLabel.BackgroundTransparency = 1
+    HUD.DistanceLabel.TextScaled = true
+    HUD.DistanceLabel.TextXAlignment = Enum.TextXAlignment.Center
+    HUD.DistanceLabel.Font = HUD.Font
+end
+
+function CreateMinimalHUD(player)
+    ClearHUD()
+    if not HUD.Enabled or not player or not player.Character or not player.Character:FindFirstChild('Humanoid') then return end
+
+    HUD.GUI = Instance.new('ScreenGui')
+    HUD.GUI.Name = 'TargetHUD_' .. math.random(1000, 9999)
+    HUD.GUI.IgnoreGuiInset = true
+    HUD.GUI.Parent = LocalPlayer.PlayerGui
+    for i = 1, 10 do
+        if HUD.GUI then break end
+        task.wait(0.05)
+    end
+    if not HUD.GUI then return end
+
+    HUD.Frame = Instance.new('Frame', HUD.GUI)
+    for i = 1, 10 do
+        if HUD.Frame then break end
+        task.wait(0.05)
+    end
+    if not HUD.Frame then return end
+    HUD.Frame.Size = UDim2.new(0, 240, 0, 90)
+    HUD.Frame.Position = UDim2.new(0.5, -120, 0.75, -45)
+    HUD.Frame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+    HUD.Frame.BackgroundTransparency = 0.7
+    HUD.Frame.Rotation = 0
+    Instance.new('UICorner', HUD.Frame).CornerRadius = UDim.new(0, 14)
+    Instance.new('UIStroke', HUD.Frame).Color = HUD.Color
+    Instance.new('UIStroke', HUD.Frame).Thickness = 3
+    Instance.new('UIStroke', HUD.Frame).Transparency = 0.5
+    game:GetService('TweenService'):Create(HUD.Frame, TweenInfo.new(0.3), {BackgroundTransparency = 0.7}):Play()
+
+    HUD.NameLabel = Instance.new('TextLabel', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.NameLabel then break end
+        task.wait(0.05)
+    end
+    if not HUD.NameLabel then return end
+    HUD.NameLabel.Size = UDim2.new(0.5, 0, 0.25, 0)
+    HUD.NameLabel.Position = UDim2.new(0.05, 0, 0.05, 0)
+    HUD.NameLabel.Text = player.Name
+    HUD.NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HUD.NameLabel.BackgroundTransparency = 1
+    HUD.NameLabel.TextScaled = true
+    HUD.NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+    HUD.NameLabel.Font = HUD.Font
+
+    HUD.HealthBar = Instance.new('Frame', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.HealthBar then break end
+        task.wait(0.05)
+    end
+    if not HUD.HealthBar then return end
+    HUD.HealthBar.Size = UDim2.new(0.85, 0, 0.3, 0)
+    HUD.HealthBar.Position = UDim2.new(0.075, 0, 0.35, 0)
+    HUD.HealthBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    HUD.HealthBar.ClipsDescendants = true
+    HUD.HealthBar.Rotation = 0
+    Instance.new('UICorner', HUD.HealthBar).CornerRadius = UDim.new(0, 10)
+
+    HUD.HealthBarFill = Instance.new('Frame', HUD.HealthBar)
+    for i = 1, 10 do
+        if HUD.HealthBarFill then break end
+        task.wait(0.05)
+    end
+    if not HUD.HealthBarFill then return end
+    HUD.HealthBarFill.Size = UDim2.new(player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth, 0, 1, 0)
+    HUD.HealthBarFill.BackgroundColor3 = HUD.Color:Lerp(Color3.fromRGB(0, 255, 0), player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth)
+    HUD.HealthBarFill.BorderSizePixel = 0
+    HUD.HealthBarFill.Rotation = 0
+    Instance.new('UICorner', HUD.HealthBarFill).CornerRadius = UDim.new(0, 10)
+    game:GetService('TweenService'):Create(HUD.HealthBarFill, TweenInfo.new(0.2), {Size = UDim2.new(player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth, 0, 1, 0)}):Play()
+
+    HUD.HealthLabel = Instance.new('TextLabel', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.HealthLabel then break end
+        task.wait(0.05)
+    end
+    if not HUD.HealthLabel then return end
+    HUD.HealthLabel.Size = UDim2.new(0.45, 0, 0.25, 0)
+    HUD.HealthLabel.Position = UDim2.new(0.05, 0, 0.65, 0)
+    HUD.HealthLabel.Text = string.format('HP: %.1f', player.Character.Humanoid.Health)
+    HUD.HealthLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HUD.HealthLabel.BackgroundTransparency = 1
+    HUD.HealthLabel.TextScaled = true
+    HUD.HealthLabel.TextXAlignment = Enum.TextXAlignment.Left
+    HUD.HealthLabel.Font = HUD.Font
+
+    HUD.DistanceLabel = Instance.new('TextLabel', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.DistanceLabel then break end
+        task.wait(0.05)
+    end
+    if not HUD.DistanceLabel then return end
+    HUD.DistanceLabel.Size = UDim2.new(0.45, 0, 0.25, 0)
+    HUD.DistanceLabel.Position = UDim2.new(0.5, 0, 0.65, 0)
+    HUD.DistanceLabel.Text = string.format('Dist: %.1f', (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('HumanoidRootPart') and (LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude) or 0)
+    HUD.DistanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HUD.DistanceLabel.BackgroundTransparency = 1
+    HUD.DistanceLabel.TextScaled = true
+    HUD.DistanceLabel.TextXAlignment = Enum.TextXAlignment.Left
+    HUD.DistanceLabel.Font = HUD.Font
+end
+
+function CreateHolographicHUD(player)
+    ClearHUD()
+    if not HUD.Enabled or not player or not player.Character or not player.Character:FindFirstChild('Humanoid') then return end
+
+    HUD.GUI = Instance.new('ScreenGui')
+    HUD.GUI.Name = 'TargetHUD_' .. math.random(1000, 9999)
+    HUD.GUI.IgnoreGuiInset = true
+    HUD.GUI.Parent = LocalPlayer.PlayerGui
+    for i = 1, 10 do
+        if HUD.GUI then break end
+        task.wait(0.05)
+    end
+    if not HUD.GUI then return end
+
+    HUD.Frame = Instance.new('Frame', HUD.GUI)
+    for i = 1, 10 do
+        if HUD.Frame then break end
+        task.wait(0.05)
+    end
+    if not HUD.Frame then return end
+    HUD.Frame.Size = UDim2.new(0, 230, 0, 110)
+    HUD.Frame.Position = UDim2.new(0.5, -115, 0.75, -55)
+    HUD.Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    HUD.Frame.BackgroundTransparency = 0.8
+    HUD.Frame.Rotation = 0
+    Instance.new('UIGradient', HUD.Frame).Color = ColorSequence.new(HUD.Color, Color3.fromRGB(0, 200, 255))
+    Instance.new('UIGradient', HUD.Frame).Rotation = 90
+    Instance.new('UICorner', HUD.Frame).CornerRadius = UDim.new(0, 14)
+    Instance.new('UIStroke', HUD.Frame).Color = HUD.Color
+    Instance.new('UIStroke', HUD.Frame).Thickness = 4
+    Instance.new('UIStroke', HUD.Frame).Transparency = 0.3
+    game:GetService('TweenService'):Create(Instance.new('UIStroke', HUD.Frame), TweenInfo.new(0.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {Transparency = 0.6}):Play()
+
+    HUD.NameLabel = Instance.new('TextLabel', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.NameLabel then break end
+        task.wait(0.05)
+    end
+    if not HUD.NameLabel then return end
+    HUD.NameLabel.Size = UDim2.new(0.85, 0, 0.25, 0)
+    HUD.NameLabel.Position = UDim2.new(0.075, 0, 0.05, 0)
+    HUD.NameLabel.Text = player.Name
+    HUD.NameLabel.TextColor3 = Color3.fromRGB(200, 255, 255)
+    HUD.NameLabel.BackgroundTransparency = 1
+    HUD.NameLabel.TextScaled = true
+    HUD.NameLabel.TextXAlignment = Enum.TextXAlignment.Center
+    HUD.NameLabel.Font = HUD.Font
+
+    HUD.HealthBar = Instance.new('Frame', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.HealthBar then break end
+        task.wait(0.05)
+    end
+    if not HUD.HealthBar then return end
+    HUD.HealthBar.Size = UDim2.new(0.85, 0, 0.3, 0)
+    HUD.HealthBar.Position = UDim2.new(0.075, 0, 0.35, 0)
+    HUD.HealthBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    HUD.HealthBar.BackgroundTransparency = 0.8
+    HUD.HealthBar.ClipsDescendants = true
+    HUD.HealthBar.Rotation = 0
+    Instance.new('UICorner', HUD.HealthBar).CornerRadius = UDim.new(0, 10)
+
+    HUD.HealthBarFill = Instance.new('Frame', HUD.HealthBar)
+    for i = 1, 10 do
+        if HUD.HealthBarFill then break end
+        task.wait(0.05)
+    end
+    if not HUD.HealthBarFill then return end
+    HUD.HealthBarFill.Size = UDim2.new(player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth, 0, 1, 0)
+    HUD.HealthBarFill.BackgroundColor3 = HUD.Color:Lerp(Color3.fromRGB(0, 255, 255), player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth)
+    HUD.HealthBarFill.BorderSizePixel = 0
+    HUD.HealthBarFill.Rotation = 0
+    Instance.new('UICorner', HUD.HealthBarFill).CornerRadius = UDim.new(0, 10)
+    game:GetService('TweenService'):Create(HUD.HealthBarFill, TweenInfo.new(0.2), {Size = UDim2.new(player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth, 0, 1, 0)}):Play()
+
+    HUD.HealthLabel = Instance.new('TextLabel', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.HealthLabel then break end
+        task.wait(0.05)
+    end
+    if not HUD.HealthLabel then return end
+    HUD.HealthLabel.Size = UDim2.new(0.85, 0, 0.2, 0)
+    HUD.HealthLabel.Position = UDim2.new(0.075, 0, 0.7, 0)
+    HUD.HealthLabel.Text = string.format('HP: %.1f%%', (player.Character.Humanoid.Health / player.Character.Humanoid.MaxHealth) * 100)
+    HUD.HealthLabel.TextColor3 = Color3.fromRGB(200, 255, 255)
+    HUD.HealthLabel.BackgroundTransparency = 1
+    HUD.HealthLabel.TextScaled = true
+    HUD.HealthLabel.TextXAlignment = Enum.TextXAlignment.Center
+    HUD.HealthLabel.Font = HUD.Font
+
+    HUD.DistanceLabel = Instance.new('TextLabel', HUD.Frame)
+    for i = 1, 10 do
+        if HUD.DistanceLabel then break end
+        task.wait(0.05)
+    end
+    if not HUD.DistanceLabel then return end
+    HUD.DistanceLabel.Size = UDim2.new(0.85, 0, 0.15, 0)
+    HUD.DistanceLabel.Position = UDim2.new(0.075, 0, 0.85, 0)
+    HUD.DistanceLabel.Text = string.format('Dist: %.1f', (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('HumanoidRootPart') and (LocalPlayer.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude) or 0)
+    HUD.DistanceLabel.TextColor3 = Color3.fromRGB(200, 255, 255)
+    HUD.DistanceLabel.BackgroundTransparency = 1
+    HUD.DistanceLabel.TextScaled = true
+    HUD.DistanceLabel.TextXAlignment = Enum.TextXAlignment.Center
+    HUD.DistanceLabel.Font = HUD.Font
+end
+
+function UpdateHUD(player)
+    if not player then
+        ClearHUD()
+        return
+    end
+    if HUD.Style == 'Compact' then
+        CreateCompactHUD(player)
+    elseif HUD.Style == 'Modern' then
+        CreateModernHUD(player)
+    elseif HUD.Style == 'Minimal' then
+        CreateMinimalHUD(player)
+    elseif HUD.Style == 'Holographic' then
+        CreateHolographicHUD(player)
+    end
+end
+
+function GetTargetPlayer()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild('HumanoidRootPart') then return nil end
+
+    HUD.IsFirstPerson = (Camera.CFrame.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude < 2
+    HUD.MousePos = game:GetService('UserInputService'):GetMouseLocation()
+    HUD.Ray = Camera:ScreenPointToRay(HUD.MousePos.X, HUD.MousePos.Y)
+    HUD.RayOrigin = Camera.CFrame.Position
+    HUD.RayDirection = HUD.Ray.Direction * 10000
+
+    HUD.RaycastParams = RaycastParams.new()
+    HUD.RaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    HUD.RaycastParams.FilterDescendantsInstances = {LocalPlayer.Character}
+    HUD.RaycastParams.IgnoreWater = true
+    HUD.RaycastResult = workspace:Raycast(HUD.RayOrigin, HUD.RayDirection, HUD.RaycastParams)
+
+    if HUD.RaycastResult then
+        HUD.HitPart = HUD.RaycastResult.Instance
+        if HUD.HitPart and (HUD.HitPart.CanCollide or HUD.HitPart.Transparency < 0.5) then
+            HUD.Character = HUD.HitPart:FindFirstAncestorOfClass('Model')
+            if HUD.Character and HUD.Character:FindFirstChild('Humanoid') and HUD.Character:FindFirstChild('HumanoidRootPart') and HUD.Character.Humanoid.Health > 0 then
+                HUD.Player = Players:GetPlayerFromCharacter(HUD.Character)
+                if HUD.Player and HUD.Player ~= LocalPlayer then
+                    HUD.RigType = HUD.Character.Humanoid.RigType
+                    HUD.OnScreenRoot, _ = Camera:WorldToViewportPoint(HUD.Character.HumanoidRootPart.Position)
+                    HUD.OnScreenHead = HUD.Character:FindFirstChild('Head') and select(1, Camera:WorldToViewportPoint(HUD.Character.Head.Position)) or false
+                    if HUD.RigType == Enum.HumanoidRigType.R15 then
+                        HUD.OnScreenUpperTorso = HUD.Character:FindFirstChild('UpperTorso') and select(1, Camera:WorldToViewportPoint(HUD.Character.UpperTorso.Position)) or false
+                        HUD.OnScreenLowerTorso = HUD.Character:FindFirstChild('LowerTorso') and select(1, Camera:WorldToViewportPoint(HUD.Character.LowerTorso.Position)) or false
+                        HUD.OnScreenTorso = false
+                    else
+                        HUD.OnScreenTorso = HUD.Character:FindFirstChild('Torso') and select(1, Camera:WorldToViewportPoint(HUD.Character.Torso.Position)) or false
+                        HUD.OnScreenUpperTorso = false
+                        HUD.OnScreenLowerTorso = false
+                    end
+                    HUD.BoundingBoxPoints = {
+                        HUD.Character.HumanoidRootPart.Position + Vector3.new(0, 2, 0),
+                        HUD.Character.HumanoidRootPart.Position + Vector3.new(0, -2, 0),
+                        HUD.Character.HumanoidRootPart.Position + Vector3.new(1, 0, 0),
+                        HUD.Character.HumanoidRootPart.Position + Vector3.new(-1, 0, 0)
+                    }
+                    HUD.OnScreen = false
+                    for _, point in ipairs(HUD.BoundingBoxPoints) do
+                        if select(1, Camera:WorldToViewportPoint(point)) then
+                            HUD.OnScreen = true
+                            break
+                        end
+                    end
+                    if HUD.OnScreen or HUD.OnScreenRoot or HUD.OnScreenHead or HUD.OnScreenTorso or HUD.OnScreenUpperTorso or HUD.OnScreenLowerTorso then
+                        return HUD.Player
+                    end
+                end
+            end
+        end
+    end
+
+    HUD.CameraCFrame = Camera.CFrame
+    HUD.CameraPos = HUD.CameraCFrame.Position
+    HUD.CameraForward = HUD.CameraCFrame.LookVector
+    HUD.ClosestPlayer = nil
+    HUD.MinDistance = math.huge
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player == LocalPlayer or not player.Character or not player.Character:FindFirstChild('HumanoidRootPart') or not player.Character:FindFirstChild('Humanoid') or player.Character.Humanoid.Health <= 0 then
+            continue
+        end
+
+        HUD.TargetPos = player.Character.HumanoidRootPart.Position
+        HUD.VectorToTarget = HUD.TargetPos - HUD.CameraPos
+        HUD.Distance = HUD.VectorToTarget.Magnitude
+        HUD.Angle = math.acos(HUD.VectorToTarget.Unit:Dot(HUD.CameraForward))
+
+        if HUD.Angle <= HUD.FOVAngle then
+            HUD.RigType = player.Character.Humanoid.RigType
+            HUD.OnScreenRoot, _ = Camera:WorldToViewportPoint(HUD.TargetPos)
+            HUD.OnScreenHead = player.Character:FindFirstChild('Head') and select(1, Camera:WorldToViewportPoint(player.Character.Head.Position)) or false
+            if HUD.RigType == Enum.HumanoidRigType.R15 then
+                HUD.OnScreenUpperTorso = player.Character:FindFirstChild('UpperTorso') and select(1, Camera:WorldToViewportPoint(player.Character.UpperTorso.Position)) or false
+                HUD.OnScreenLowerTorso = player.Character:FindFirstChild('LowerTorso') and select(1, Camera:WorldToViewportPoint(player.Character.LowerTorso.Position)) or false
+                HUD.OnScreenTorso = false
+            else
+                HUD.OnScreenTorso = player.Character:FindFirstChild('Torso') and select(1, Camera:WorldToViewportPoint(player.Character.Torso.Position)) or false
+                HUD.OnScreenUpperTorso = false
+                HUD.OnScreenLowerTorso = false
+            end
+            HUD.BoundingBoxPoints = {
+                HUD.TargetPos + Vector3.new(0, 2, 0),
+                HUD.TargetPos + Vector3.new(0, -2, 0),
+                HUD.TargetPos + Vector3.new(1, 0, 0),
+                HUD.TargetPos + Vector3.new(-1, 0, 0)
+            }
+            HUD.OnScreen = false
+            for _, point in ipairs(HUD.BoundingBoxPoints) do
+                if select(1, Camera:WorldToViewportPoint(point)) then
+                    HUD.OnScreen = true
+                    break
+                end
+            end
+            if (HUD.OnScreen or HUD.OnScreenRoot or HUD.OnScreenHead or HUD.OnScreenTorso or HUD.OnScreenUpperTorso or HUD.OnScreenLowerTorso) and HUD.Distance < HUD.MinDistance then
+                HUD.MinDistance = HUD.Distance
+                HUD.ClosestPlayer = player
+            end
+        end
+    end
+
+    return HUD.ClosestPlayer
+end
+
 function UpdateViewmodel()
     if ViewmodelSettings.Enabled then
-        viewModel = game.Workspace.CurrentCamera:FindFirstChild("ViewModel")
-        if viewModel then
-            if viewModel:FindFirstChild("Left Arm") then
-                viewModel["Left Arm"].Material = Enum.Material.ForceField
-                viewModel["Left Arm"].Color = ViewmodelSettings.Color
+        HUD.ViewModel = Camera:FindFirstChild("ViewModel")
+        if HUD.ViewModel then
+            if HUD.ViewModel:FindFirstChild("Left Arm") then
+                HUD.ViewModel["Left Arm"].Material = Enum.Material.ForceField
+                HUD.ViewModel["Left Arm"].Color = ViewmodelSettings.Color
             end
-            if viewModel:FindFirstChild("Right Arm") then
-                viewModel["Right Arm"].Material = Enum.Material.ForceField
-                viewModel["Right Arm"].Color = ViewmodelSettings.Color
+            if HUD.ViewModel:FindFirstChild("Right Arm") then
+                HUD.ViewModel["Right Arm"].Material = Enum.Material.ForceField
+                HUD.ViewModel["Right Arm"].Color = ViewmodelSettings.Color
             end
         end
     else
-        viewModel = game.Workspace.CurrentCamera:FindFirstChild("ViewModel")
-        if viewModel then
-            if viewModel:FindFirstChild("Left Arm") then
-                viewModel["Left Arm"].Material = Enum.Material.Plastic
+        HUD.ViewModel = Camera:FindFirstChild("ViewModel")
+        if HUD.ViewModel then
+            if HUD.ViewModel:FindFirstChild("Left Arm") then
+                HUD.ViewModel["Left Arm"].Material = Enum.Material.Plastic
             end
-            if viewModel:FindFirstChild("Right Arm") then
-                viewModel["Right Arm"].Material = Enum.Material.Plastic
+            if HUD.ViewModel:FindFirstChild("Right Arm") then
+                HUD.ViewModel["Right Arm"].Material = Enum.Material.Plastic
             end
         end
     end
@@ -3003,24 +3951,24 @@ end
 
 function EnableCrosshair()
     if next(CrosshairParts) == nil then
-        centerX = workspace.CurrentCamera.ViewportSize.X / 2
-        centerY = workspace.CurrentCamera.ViewportSize.Y / 2
-        horizontal = Drawing.new("Line")
-        horizontal.Visible = true
-        horizontal.Color = Options.CrosshairColor.Value
-        horizontal.Thickness = 2
-        horizontal.Transparency = 1
-        horizontal.From = Vector2.new(centerX - 10, centerY)
-        horizontal.To = Vector2.new(centerX + 10, centerY)
-        CrosshairParts.Horizontal = horizontal
-        vertical = Drawing.new("Line")
-        vertical.Visible = true
-        vertical.Color = Options.CrosshairColor.Value
-        vertical.Thickness = 2
-        vertical.Transparency = 1
-        vertical.From = Vector2.new(centerX, centerY - 10)
-        vertical.To = Vector2.new(centerX, centerY + 10)
-        CrosshairParts.Vertical = vertical
+        HUD.CenterX = Camera.ViewportSize.X / 2
+        HUD.CenterY = Camera.ViewportSize.Y / 2
+        HUD.Horizontal = Drawing.new("Line")
+        HUD.Horizontal.Visible = true
+        HUD.Horizontal.Color = Options.CrosshairColor.Value
+        HUD.Horizontal.Thickness = 2
+        HUD.Horizontal.Transparency = 1
+        HUD.Horizontal.From = Vector2.new(HUD.CenterX - 10, HUD.CenterY)
+        HUD.Horizontal.To = Vector2.new(HUD.CenterX + 10, HUD.CenterY)
+        CrosshairParts.Horizontal = HUD.Horizontal
+        HUD.Vertical = Drawing.new("Line")
+        HUD.Vertical.Visible = true
+        HUD.Vertical.Color = Options.CrosshairColor.Value
+        HUD.Vertical.Thickness = 2
+        HUD.Vertical.Transparency = 1
+        HUD.Vertical.From = Vector2.new(HUD.CenterX, HUD.CenterY - 10)
+        HUD.Vertical.To = Vector2.new(HUD.CenterX, HUD.CenterY + 10)
+        CrosshairParts.Vertical = HUD.Vertical
     end
 end
 
@@ -3039,26 +3987,26 @@ end
 
 function PlayHeadshotSound()
     if HeadshotSettings.Enabled then
-        sound = Instance.new("Sound")
-        sound.SoundId = "rbxassetid://" .. HeadshotSettings.SoundId
-        sound.Volume = HeadshotSettings.Volume
-        sound.Parent = game.Workspace
-        sound:Play()
-        game:GetService("Debris"):AddItem(sound, 2)
+        HUD.Sound = Instance.new("Sound")
+        HUD.Sound.SoundId = "rbxassetid://" .. HeadshotSettings.SoundId
+        HUD.Sound.Volume = HeadshotSettings.Volume
+        HUD.Sound.Parent = workspace
+        HUD.Sound:Play()
+        game:GetService("Debris"):AddItem(HUD.Sound, 2)
     end
 end
 
 function SetupHitmarkerForTool(tool)
-    if hitmarkerConnection then
-        hitmarkerConnection:Disconnect()
-        hitmarkerConnection = nil
+    if HUD.HitmarkerConnection then
+        HUD.HitmarkerConnection:Disconnect()
+        HUD.HitmarkerConnection = nil
     end
-    hitmarker = tool:FindFirstChild("Hitmarker")
-    if hitmarker then
-        hitmarkerConnection = hitmarker.Event:Connect(function(hitPart)
+    HUD.Hitmarker = tool:FindFirstChild("Hitmarker")
+    if HUD.Hitmarker then
+        HUD.HitmarkerConnection = HUD.Hitmarker.Event:Connect(function(hitPart)
             if hitPart and hitPart.Parent and hitPart.Parent:FindFirstChild("Humanoid") then
-                hitPlayer = game:GetService("Players"):GetPlayerFromCharacter(hitPart.Parent)
-                if hitPlayer and hitPlayer ~= game:GetService("Players").LocalPlayer and hitPart.Name == "Head" then
+                HUD.HitPlayer = Players:GetPlayerFromCharacter(hitPart.Parent)
+                if HUD.HitPlayer and HUD.HitPlayer ~= LocalPlayer and hitPart.Name == "Head" then
                     PlayHeadshotSound()
                 end
             end
@@ -3066,36 +4014,57 @@ function SetupHitmarkerForTool(tool)
     end
 end
 
-game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character)
+LocalPlayer.CharacterAdded:Connect(function(character)
     character:WaitForChild("Humanoid")
-    tool = character:FindFirstChildOfClass("Tool")
-    if tool then
-        SetupHitmarkerForTool(tool)
+    HUD.Tool = character:FindFirstChildOfClass("Tool")
+    if HUD.Tool then
+        SetupHitmarkerForTool(HUD.Tool)
     end
+    UpdateViewmodel()
 end)
 
-game:GetService("Players").LocalPlayer.Character.ChildAdded:Connect(function(child)
+LocalPlayer.Character.ChildAdded:Connect(function(child)
     if child:IsA("Tool") then
         SetupHitmarkerForTool(child)
     end
 end)
 
-game:GetService("Players").LocalPlayer.Character.ChildRemoved:Connect(function(child)
-    if child:IsA("Tool") and hitmarkerConnection then
-        hitmarkerConnection:Disconnect()
-        hitmarkerConnection = nil
+LocalPlayer.Character.ChildRemoved:Connect(function(child)
+    if child:IsA("Tool") and HUD.HitmarkerConnection then
+        HUD.HitmarkerConnection:Disconnect()
+        HUD.HitmarkerConnection = nil
     end
 end)
 
-game:GetService("RunService").RenderStepped:Connect(function()
-    player = game:GetService("Players").LocalPlayer
-    if player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+game:GetService('RunService').RenderStepped:Connect(function()
+    HUD.Player = LocalPlayer
+    if HUD.Player.Character and HUD.Player.Character:FindFirstChild("Humanoid") and HUD.Player.Character.Humanoid.Health > 0 then
         UpdateViewmodel()
-        workspace.CurrentCamera.FieldOfView = CustomFOV
+        Camera.FieldOfView = CustomFOV
     end
 end)
 
-game:GetService("Players").LocalPlayer.CharacterAdded:Connect(UpdateViewmodel)
+local connection
+function StartUpdateLoop()
+    if connection then connection:Disconnect() end
+    connection = game:GetService('RunService').Heartbeat:Connect(function()
+        if not HUD.Enabled then
+            ClearHUD()
+            return
+        end
+        if tick() - HUD.LastUpdate < 0.2 then return end
+        HUD.LastUpdate = tick()
+
+        HUD.NewTarget = GetTargetPlayer()
+        if HUD.NewTarget then
+            HUD.Target = HUD.NewTarget
+            UpdateHUD(HUD.Target)
+        else
+            HUD.Target = nil
+            UpdateHUD(nil)
+        end
+    end)
+end
 
 VisualsLeft2:AddButton({
     Text = "FullBright",
@@ -3111,7 +4080,7 @@ VisualsLeft2:AddButton({
             game:GetService("Lighting").ColorShift_Bottom = Color3.new(1, 1, 1)
             game:GetService("Lighting").ColorShift_Top = Color3.new(1, 1, 1)
         end)
-        game:GetService("Players").LocalPlayer.CharacterAdded:Connect(function(character)
+        LocalPlayer.CharacterAdded:Connect(function(character)
             character:WaitForChild("HumanoidRootPart")
             game:GetService("Lighting").Ambient = Color3.new(1, 1, 1)
             game:GetService("Lighting").ColorShift_Bottom = Color3.new(1, 1, 1)
@@ -3132,11 +4101,37 @@ VisualsLeft2:AddButton({
 VisualsLeft2:AddButton({
     Text = "Noclip Camera",
     Func = function()
-        game:GetService("Players").LocalPlayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
+        LocalPlayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam
     end
 })
 
-blur = Instance.new("BlurEffect", game.Lighting)
+HUDToggle = VisualsLeft2:AddToggle('HUDToggle', {
+    Text = 'Target HUD',
+    Default = false,
+    Callback = function(Value)
+        HUD.Enabled = Value
+        if Value then
+            StartUpdateLoop()
+        else
+            ClearHUD()
+            if connection then connection:Disconnect() end
+        end
+    end
+})
+
+HUDToggle:AddColorPicker('HUDColorPicker', {
+    Default = Color3.fromRGB(255, 0, 0),
+    Title = 'HUD Color',
+    Transparency = 0,
+    Callback = function(Value)
+        HUD.Color = Value
+        if HUD.Target then
+            UpdateHUD(HUD.Target)
+        end
+    end
+})
+
+blur = Instance.new("BlurEffect", game:GetService("Lighting"))
 blur.Size = 0
 
 VisualsLeft2:AddToggle('BlurToggle', {
@@ -3144,25 +4139,22 @@ VisualsLeft2:AddToggle('BlurToggle', {
     Default = false,
     Callback = function(value)
         if value then
-            blurConnection = game:GetService("RunService").RenderStepped:Connect(function()
-                cam = workspace.CurrentCamera
-                currentLookVector = cam.CFrame.LookVector
-                rotationSpeed = (currentLookVector - (lastLookVector or currentLookVector)).Magnitude * 130
-                blur.Size = math.clamp(rotationSpeed, 0, 20)
-                lastLookVector = currentLookVector
+            HUD.BlurConnection = game:GetService('RunService').RenderStepped:Connect(function()
+                HUD.Cam = Camera
+                HUD.CurrentLookVector = HUD.Cam.CFrame.LookVector
+                HUD.RotationSpeed = (HUD.CurrentLookVector - (HUD.LastLookVector or HUD.CurrentLookVector)).Magnitude * 130
+                blur.Size = math.clamp(HUD.RotationSpeed, 0, 20)
+                HUD.LastLookVector = HUD.CurrentLookVector
             end)
         else
-            if blurConnection then
-                blurConnection:Disconnect()
-                blurConnection = nil
+            if HUD.BlurConnection then
+                HUD.BlurConnection:Disconnect()
+                HUD.BlurConnection = nil
             end
             blur.Size = 0
         end
     end
 })
-
-lastLookVector = nil
-blurConnection = nil
 
 VisualsLeft2:AddToggle('ViewmodelEnabled', {
     Text = "ForceField Viewmodel",
@@ -3209,6 +4201,32 @@ VisualsLeft2:AddDropdown('HeadshotType', {
     end
 })
 
+VisualsLeft2:AddDropdown('HUDStyleDropdown', {
+    Values = {'Compact', 'Modern', 'Minimal', 'Holographic'},
+    Default = 1,
+    Multi = false,
+    Text = 'HUD Style',
+    Callback = function(Value)
+        HUD.Style = Value
+        if HUD.Target then
+            UpdateHUD(HUD.Target)
+        end
+    end
+})
+
+VisualsLeft2:AddDropdown('HUDFontDropdown', {
+    Values = {'Arial', 'Bangers', 'Gotham'},
+    Default = 3,
+    Multi = false,
+    Text = 'HUD Font',
+    Callback = function(Value)
+        HUD.Font = Enum.Font[Value]
+        if HUD.Target then
+            UpdateHUD(HUD.Target)
+        end
+    end
+})
+
 VisualsLeft2:AddSlider('HeadshotVolume', {
     Text = 'Headshot Volume',
     Default = HeadshotSettings.Volume,
@@ -3222,12 +4240,12 @@ VisualsLeft2:AddSlider('HeadshotVolume', {
 
 VisualsLeft2:AddSlider('CameraDistanceSlider', {
     Text = "Camera Distance",
-    Default = game:GetService("Players").LocalPlayer.CameraMaxZoomDistance,
+    Default = LocalPlayer.CameraMaxZoomDistance,
     Min = 100,
     Max = 1000,
     Rounding = 0,
     Callback = function(Value)
-        game:GetService("Players").LocalPlayer.CameraMaxZoomDistance = Value
+        LocalPlayer.CameraMaxZoomDistance = Value
     end
 })
 
@@ -3245,17 +4263,17 @@ VisualsLeft2:AddSlider('GameTime', {
 
 VisualsLeft2:AddSlider('FOVSlider', {
     Text = "Field of View",
-    Default = workspace.CurrentCamera.FieldOfView,
+    Default = Camera.FieldOfView,
     Min = 30,
     Max = 120,
     Rounding = 0,
     Callback = function(Value)
         CustomFOV = Value
-        workspace.CurrentCamera.FieldOfView = Value
+        Camera.FieldOfView = Value
     end
 })
 
-MovementLeft = Tabs.Movement:AddLeftGroupbox('Speed')
+MovementLeft = Tabs.Movement:AddLeftGroupbox('Speed and JumpPower')
 MovementRight = Tabs.Movement:AddRightGroupbox('Fly')
 MovementLeft2 = Tabs.Movement:AddLeftGroupbox('Noclips')
 MovementRight2 = Tabs.Movement:AddRightGroupbox('Other')
@@ -3271,8 +4289,6 @@ character = player.Character or player.CharacterAdded:Wait()
 humanoid = character:WaitForChild("Humanoid")
 humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
-speedEnabled = false
-targetSpeed = 1
 flyEnabled = false
 flySpeed = 40
 fly2Enabled = false
@@ -3302,29 +4318,95 @@ player.CharacterAdded:Connect(function(newCharacter)
     end
 end)
 
-SpeedToggle = MovementLeft:AddToggle("SpeedEnabled", {
-    Text = "Speed",
+MovementLeft:AddToggle('IncreaseSpeed', {
+    Text = 'Speedhack',
     Default = false,
-    Callback = function(Value) 
-        speedEnabled = Value 
+    Callback = function(Value)
+        if Value then
+            if not _G.SpeedConnection then
+                _G.SpeedConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                    p = game.Players.LocalPlayer
+                    c = p.Character
+                    if c and c:FindFirstChild("Humanoid") and c:FindFirstChild("HumanoidRootPart") then
+                        h = c.Humanoid
+                        r = c.HumanoidRootPart
+                        d = h.MoveDirection
+                        if h:GetState() ~= Enum.HumanoidStateType.Climbing then
+                            r.CFrame = r.CFrame + Vector3.new(d.X * Options.SpeedValue.Value, 0, d.Z * Options.SpeedValue.Value)
+                        end
+                    end
+                end)
+            end
+        else
+            if _G.SpeedConnection then
+                _G.SpeedConnection:Disconnect()
+                _G.SpeedConnection = nil
+            end
+        end
     end
+}):AddKeyPicker('SpeedKey', {
+    Default = 'None',
+    SyncToggleState = true,
+    Mode = 'Toggle',
+    Text = 'Speedhack',
+    Callback = function() end
 })
 
-SpeedToggle:AddKeyPicker("SpeedKey", {
-    Default = "None", 
-    SyncToggleState = true, 
-    Mode = "Toggle", 
-    Text = "Speed"
+MovementLeft:AddSlider('SpeedValue', {
+    Text = 'Speed',
+    Default = 0.16,
+    Min = 0,
+    Max = 2,
+    Rounding = 2,
+    Callback = function(Value) end
 })
 
-SpeedSlider = MovementLeft:AddSlider("SpeedValue", {
-    Text = "Speed Value",
-    Default = 1, 
-    Min = 1, 
-    Max = 50, 
-    Rounding = 0,
-    Callback = function(Value) 
-        targetSpeed = Value 
+MovementLeft:AddToggle('JumpPowerToggle', {
+    Text = 'JumpPower',
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            if not _G.JumpHeightConnection then
+                _G.JumpHeightConnection = game:GetService("RunService").RenderStepped:Connect(function()
+                    if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+                        game.Players.LocalPlayer.Character.Humanoid.UseJumpPower = false
+                        game.Players.LocalPlayer.Character.Humanoid.JumpHeight = Options.JumpPowerSlider.Value
+                    end
+                end)
+            end
+        else
+            if _G.JumpHeightConnection then
+                _G.JumpHeightConnection:Disconnect()
+                _G.JumpHeightConnection = nil
+            end
+            if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+                game.Players.LocalPlayer.Character.Humanoid.UseJumpPower = false
+                game.Players.LocalPlayer.Character.Humanoid.JumpHeight = 7.1
+            end
+        end
+    end
+}):AddKeyPicker('JumpPowerKey', {
+    Default = 'None',
+    SyncToggleState = true,
+    Mode = 'Toggle',
+    Text = 'JumpPower',
+    Callback = function() end
+})
+
+MovementLeft:AddSlider('JumpPowerSlider', {
+    Text = 'Jump Height',
+    Default = 5,
+    Min = 5,
+    Max = 30,
+    Rounding = 1,
+    Compact = false,
+    Callback = function(Value)
+        if Toggles.JumpPowerToggle.Value then
+            if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+                game.Players.LocalPlayer.Character.Humanoid.UseJumpPower = false
+                game.Players.LocalPlayer.Character.Humanoid.JumpHeight = Value
+            end
+        end
     end
 })
 
@@ -3416,9 +4498,6 @@ Fly2SpeedSlider = MovementRight:AddSlider("Fly2Speed", {
 })
 
 RunService.RenderStepped:Connect(function(deltaTime)
-    if speedEnabled and humanoid and humanoid.MoveDirection.Magnitude > 0 then
-        character:TranslateBy(humanoid.MoveDirection.Unit * targetSpeed * deltaTime)
-    end
     if flyEnabled and humanoidRootPart then
         moveDirection = Vector3.zero
         if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDirection = moveDirection + Camera.CFrame.LookVector end
@@ -3479,36 +4558,55 @@ NoclipToggle = MovementLeft2:AddToggle('NoclipToggle', {
     end
 })
 
-_G.NoJumpCooldown = false
+NoJumpDelay = false
 
-MovementRight2:AddToggle('NoJumpCooldownToggle', {
-    Text = 'No Jump Cooldown',
+MovementRight2:AddToggle('NoJumpDelay', {
+    Text = 'No Jump Delay',
     Default = false,
-    Callback = function(v)
-        _G.NoJumpCooldown = v
+    Callback = function(Value)
+        NoJumpDelay = Value
     end
 })
 
-function setup(c)
-    h = c:WaitForChild("Humanoid", 5)
-    if not h then return end
+UserInputService = game:GetService("UserInputService")
+Players = game:GetService("Players")
 
-    local alive = true
+player = Players.LocalPlayer
+character = player.Character or player.CharacterAdded:Wait()
+humanoid = character:WaitForChild("Humanoid")
 
-    h.Died:Connect(function()
-        alive = false
-    end)
+jumpHeld = false
+canJump = true
 
-    game:GetService("UserInputService").JumpRequest:Connect(function()
-        if _G.NoJumpCooldown and alive and h:GetState() == Enum.HumanoidStateType.Running then
-            h:ChangeState(Enum.HumanoidStateType.Jumping)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Space then
+        jumpHeld = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Space then
+        jumpHeld = false
+    end
+end)
+
+task.spawn(function()
+    while true do
+        task.wait(0.01)
+        if NoJumpDelay then
+            if jumpHeld and humanoid.FloorMaterial ~= Enum.Material.Air and canJump then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                canJump = false
+                task.delay(0.35, function()
+                    canJump = true
+                end)
+            end
         end
-    end)
-end
+    end
+end)
 
 p = game:GetService("Players").LocalPlayer
-if p.Character then setup(p.Character) end
-p.CharacterAdded:Connect(setup)
 
 AlwaysSprintToggle = MovementRight2:AddToggle('AlwaysSprint', {
     Text = "Always Sprint",
@@ -3596,6 +4694,45 @@ InfStaminaToggle = MovementRight2:AddToggle('InfStaminaToggle', {
     end
 })
 
+player = game:GetService("Players").LocalPlayer
+character = player.Character or player.CharacterAdded:Wait()
+humanoid = character:WaitForChild("Humanoid")
+runService = game:GetService("RunService")
+replicatedStorage = game:GetService("ReplicatedStorage")
+
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoid = character:WaitForChild("Humanoid")
+end)
+
+fallDamageModule = replicatedStorage:FindFirstChild("FallDamageModule")
+if fallDamageModule then
+    fallDamage = require(fallDamageModule)
+    if type(fallDamage) == "table" and fallDamage.FallDamage then
+        fallDamage.FallDamage = function() return 0 end
+    end
+end
+
+MovementRight2:AddToggle('NofallDamage1', {
+    Text = 'No fall Damage1',
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            connection = runService.RenderStepped:Connect(function()
+                if humanoid and humanoid.Health > 0 then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Freefall)
+                    humanoid:ChangeState(Enum.HumanoidStateType.Running)
+                end
+            end)
+        else
+            if connection then
+                connection:Disconnect()
+                connection = nil
+            end
+        end
+    end
+})
+
 DisableFallDamage = false
 DisableRagdoll = false
 DisableDrown = false
@@ -3672,6 +4809,74 @@ game:GetService("RunService").Heartbeat:Connect(function()
     end
     if EventDrown and EventDrown.Parent and DisableDrown then
         EventDrown.Parent = nil
+    end
+end)
+
+UserInputService = game:GetService("UserInputService")
+Players = game:GetService("Players")
+RunService = game:GetService("RunService")
+
+player = Players.LocalPlayer
+character = player.Character or player.CharacterAdded:Wait()
+humanoid = character:WaitForChild("Humanoid")
+HRP = character:WaitForChild("HumanoidRootPart")
+
+jumpHeld = false
+BunnyHopEnabled = false
+_G.BhopSpeed = 25
+
+MovementRight2:AddToggle('BunnyHopToggle', {
+    Text = 'BunnyHop',
+    Default = false,
+    Callback = function(Value)
+        BunnyHopEnabled = Value
+    end
+}):AddKeyPicker('BunnyHopKeyPicker', {
+    Default = 'None',
+    SyncToggleState = true,
+    Mode = 'Toggle',
+    Text = 'BunnyHop',
+    Callback = function(Value)
+        BunnyHopEnabled = Value
+    end
+})
+
+MovementRight2:AddSlider('BhopSpeed', {
+    Text = 'Bhop Speed',
+    Default = 25,
+    Min = 10,
+    Max = 70,
+    Rounding = 0,
+    Callback = function(value)
+        _G.BhopSpeed = value
+    end
+})
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.Space then
+        jumpHeld = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Space then
+        jumpHeld = false
+    end
+end)
+
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = character:WaitForChild("Humanoid")
+    HRP = character:WaitForChild("HumanoidRootPart")
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not BunnyHopEnabled then return end
+    if humanoid.FloorMaterial ~= Enum.Material.Air then return end
+    if jumpHeld then
+        local boost = (_G.BhopSpeed / 10)
+        HRP.Velocity += HRP.CFrame.LookVector * boost
     end
 end)
 
@@ -4802,6 +6007,7 @@ MiscLeft2 = Tabs.Misc:AddLeftGroupbox('Anti-effect')
 MiscLeft3 = Tabs.Misc:AddLeftGroupbox('Teleports')
 MiscLeft4 = Tabs.Misc:AddLeftGroupbox('Anti-Aim')
 MiscRight2 = Tabs.Misc:AddRightGroupbox('Animations')
+MiscRight4 = Tabs.Misc:AddRightGroupbox('ChatBot')
 MiscRight3 = Tabs.Misc:AddRightGroupbox('Others')
 
 Players = game:GetService("Players")
@@ -5099,70 +6305,6 @@ function Open_doorsL()
     end
 end
 
-toolsFolder = game:GetService("Workspace"):WaitForChild("Filter"):WaitForChild("SpawnedTools")
-cashFolder = game:GetService("Workspace"):WaitForChild("Filter"):WaitForChild("SpawnedBread")
-pilesFolder = game:GetService("Workspace"):WaitForChild("Filter"):WaitForChild("SpawnedPiles")
-
-toolsEnabled, cashEnabled, pilesEnabled = false, false, false
-
-function interactWithPrompt(v)
-    if v:IsA("ProximityPrompt") then
-        v.HoldDuration = 0
-        fireproximityprompt(v)
-    end
-end
-
-function pickup(v)
-    if toolsEnabled and v:IsA("Model") and toolsFolder:FindFirstChild(v.Name) then
-        for _, p in pairs(v:GetDescendants()) do interactWithPrompt(p) end
-    elseif cashEnabled and v:IsA("BasePart") and v.Name == "CashDrop1" then
-        for _, p in pairs(v:GetChildren()) do interactWithPrompt(p) end
-    elseif pilesEnabled and v:IsA("Model") and (v.Name == "P" or v.Name == "S1" or v.Name == "S2") then
-        for _, p in pairs(v:GetDescendants()) do interactWithPrompt(p) end
-    end
-end
-
-function scanItems()
-    while toolsEnabled or cashEnabled or pilesEnabled do
-        for _, v in ipairs(toolsFolder:GetChildren()) do pickup(v) end
-        for _, v in ipairs(cashFolder:GetChildren()) do pickup(v) end
-        for _, v in ipairs(pilesFolder:GetChildren()) do pickup(v) end
-        task.wait(0.1)
-    end
-end
-
-toolsFolder.ChildAdded:Connect(pickup)
-cashFolder.ChildAdded:Connect(pickup)
-pilesFolder.ChildAdded:Connect(pickup)
-workspace.DescendantAdded:Connect(interactWithPrompt)
-
-MiscRight:AddToggle('ToggleTools', {
-    Text = "AutoPickup Tools",
-    Default = false,
-    Callback = function(Value)
-        toolsEnabled = Value
-        if toolsEnabled then task.spawn(scanItems) end
-    end
-})
-
-MiscRight:AddToggle('ToggleCash', {
-    Text = "AutoPickup Cash",
-    Default = false,
-    Callback = function(Value)
-        cashEnabled = Value
-        if cashEnabled then task.spawn(scanItems) end
-    end
-})
-
-MiscRight:AddToggle('TogglePiles', {
-    Text = "AutoPickup Piles Gift",
-    Default = false,
-    Callback = function(Value)
-        pilesEnabled = Value
-        if pilesEnabled then task.spawn(scanItems) end
-    end
-})
-
 AutoClaimEnabled = false
 AutoClaimAllowanceCoolDown = false
 
@@ -5252,6 +6394,310 @@ run.RenderStepped:Connect(function()
     end
 end)
 
+pickupMethod = "Without Remote Event"
+
+toolsFolder = game:GetService("Workspace"):WaitForChild("Filter"):WaitForChild("SpawnedTools")
+cashFolder = game:GetService("Workspace"):WaitForChild("Filter"):WaitForChild("SpawnedBread")
+pilesFolder = game:GetService("Workspace"):WaitForChild("Filter"):WaitForChild("SpawnedPiles")
+
+toolsEnabled = false
+cashEnabled = false
+scrapsEnabled = false
+cratesEnabled = false
+
+scrapsConnection = nil
+toolsConnection = nil
+cratesConnection = nil
+moneyConnection = nil
+canPickup = true
+lastPickupTime = 0
+cooldown = 0.8
+
+function interactWithPrompt(v)
+	if v:IsA("ProximityPrompt") and canPickup then
+		v.HoldDuration = 0
+		fireproximityprompt(v)
+		canPickup = false
+		lastPickupTime = tick()
+	end
+end
+
+function pickupWithoutRemote(v)
+	if toolsEnabled and v:IsA("Model") and toolsFolder:FindFirstChild(v.Name) then
+		for _, p in pairs(v:GetDescendants()) do interactWithPrompt(p) end
+	elseif cashEnabled and v:IsA("BasePart") and v.Name == "CashDrop1" then
+		for _, p in pairs(v:GetChildren()) do interactWithPrompt(p) end
+	elseif scrapsEnabled and v:IsA("Model") and (v.Name == "S1" or v.Name == "S2") then
+		for _, p in pairs(v:GetDescendants()) do interactWithPrompt(p) end
+	elseif cratesEnabled and v:IsA("Model") and (v.Name == "C1" or v.Name == "C2" or v.Name == "C3") then
+		for _, p in pairs(v:GetDescendants()) do interactWithPrompt(p) end
+	end
+end
+
+function scanItems()
+	while toolsEnabled or cashEnabled or scrapsEnabled or cratesEnabled do
+		if not canPickup and tick() - lastPickupTime >= cooldown then
+			canPickup = true
+		end
+		for _, v in ipairs(toolsFolder:GetChildren()) do pickupWithoutRemote(v) end
+		for _, v in ipairs(cashFolder:GetChildren()) do pickupWithoutRemote(v) end
+		for _, v in ipairs(pilesFolder:GetChildren()) do pickupWithoutRemote(v) end
+		task.wait(0.1)
+	end
+end
+
+function pickupWithRemoteScraps()
+	rpScraps = game:GetService("ReplicatedStorage")
+	remoteScraps = rpScraps:WaitForChild("Events"):WaitForChild("PIC_PU")
+	scrapsFolderScraps = pilesFolder
+	canPickupRemoteScraps = true
+	startTickScraps = tick()
+	scrapsConnection = run.RenderStepped:Connect(function()
+		maxdistScraps = 15
+		closestScraps = nil
+		for _, a in pairs(scrapsFolderScraps:GetChildren()) do
+			if a and (a.Name == "S1" or a.Name == "S2") and me.Character and me.Character.HumanoidRootPart then
+				getdistScraps = (me.Character.HumanoidRootPart.Position - a.MeshPart.Position).Magnitude
+				if getdistScraps < maxdistScraps then
+					maxdistScraps = getdistScraps
+					closestScraps = a
+				end
+			end
+		end
+		if closestScraps and canPickupRemoteScraps then
+			remoteScraps:FireServer(string.reverse(closestScraps:GetAttribute("jzu")))
+			canPickupRemoteScraps = false
+		elseif closestScraps and tick() - startTickScraps >= 4.5 then
+			canPickupRemoteScraps = true
+			startTickScraps = tick()
+		end
+	end)
+end
+
+function pickupWithRemoteTools()
+	rpTools = game:GetService("ReplicatedStorage")
+	remoteTools = rpTools:WaitForChild("Events"):WaitForChild("PIC_TLO")
+	toolsFolderTools = toolsFolder
+	canPickupRemoteTools = true
+	startTickTools = tick()
+	toolsConnection = run.RenderStepped:Connect(function()
+		maxdistTools = 15
+		closestTools = nil
+		for _, a in pairs(toolsFolderTools:GetChildren()) do
+			if a and me.Character and me.Character.HumanoidRootPart then
+				handleTools = a:FindFirstChild("Handle") or a:FindFirstChild("WeaponHandle")
+				if handleTools and (handleTools:IsA("Part") or handleTools:IsA("MeshPart")) then
+					getdistTools = (me.Character.HumanoidRootPart.Position - handleTools.Position).Magnitude
+					if getdistTools < maxdistTools then
+						maxdistTools = getdistTools
+						closestTools = a
+					end
+				end
+			end
+		end
+		if closestTools then
+			HandleTools = closestTools:FindFirstChild("Handle") or closestTools:FindFirstChild("WeaponHandle")
+			if HandleTools and canPickupRemoteTools then
+				remoteTools:FireServer(HandleTools)
+				canPickupRemoteTools = false
+			elseif HandleTools and tick() - startTickTools >= 1.5 then
+				canPickupRemoteTools = true
+				startTickTools = tick()
+			end
+		end
+	end)
+end
+
+function pickupWithRemoteCrates()
+	rpCrates = game:GetService("ReplicatedStorage")
+	remoteCrates = rpCrates:WaitForChild("Events"):WaitForChild("PIC_PU")
+	scrapsFolderCrates = pilesFolder
+	canPickupRemoteCrates = true
+	startTickCrates = tick()
+	cratesConnection = run.RenderStepped:Connect(function()
+		maxdistCrates = 15
+		closestCrates = nil
+		for _, a in pairs(scrapsFolderCrates:GetChildren()) do
+			if a and (a.Name == "C1" or a.Name == "C2" or a.Name == "C3") and me.Character and me.Character.HumanoidRootPart then
+				getdistCrates = (me.Character.HumanoidRootPart.Position - a.MeshPart.Position).Magnitude
+				if getdistCrates < maxdistCrates then
+					maxdistCrates = getdistCrates
+					closestCrates = a
+				end
+			end
+		end
+		if closestCrates and canPickupRemoteCrates then
+			remoteCrates:FireServer(string.reverse(closestCrates:GetAttribute("jzu")))
+			canPickupRemoteCrates = false
+		elseif closestCrates and tick() - startTickCrates >= 7 then
+			canPickupRemoteCrates = true
+			startTickCrates = tick()
+		end
+	end)
+end
+
+function pickupWithRemoteMoney()
+	rpMoney = game:GetService("ReplicatedStorage")
+	remoteMoney = rpMoney:WaitForChild("Events"):WaitForChild("CZDPZUS")
+	moneyFolderMoney = cashFolder
+	canPickupRemoteMoney = true
+	startTickMoney = tick()
+	moneyConnection = run.RenderStepped:Connect(function()
+		maxdistMoney = 15
+		closestMoney = nil
+		for _, a in pairs(moneyFolderMoney:GetChildren()) do
+			if a and me.Character and me.Character.HumanoidRootPart then
+				getdistMoney = (me.Character.HumanoidRootPart.Position - a.Position).Magnitude
+				if getdistMoney < maxdistMoney then
+					maxdistMoney = getdistMoney
+					closestMoney = a
+				end
+			end
+		end
+		if closestMoney and canPickupRemoteMoney then
+			remoteMoney:FireServer(closestMoney)
+			canPickupRemoteMoney = false
+		elseif closestMoney and tick() - startTickMoney >= 0.7 then
+			canPickupRemoteMoney = true
+			startTickMoney = tick()
+		end
+	end)
+end
+
+toolsFolder.ChildAdded:Connect(pickupWithoutRemote)
+cashFolder.ChildAdded:Connect(pickupWithoutRemote)
+pilesFolder.ChildAdded:Connect(pickupWithoutRemote)
+workspace.DescendantAdded:Connect(interactWithPrompt)
+
+MiscRight:AddToggle('ToggleScraps', {
+    Text = "AutoPickup Scraps",
+    Default = false,
+    Callback = function(Value)
+        scrapsEnabled = Value
+        if scrapsConnection then
+            scrapsConnection:Disconnect()
+            scrapsConnection = nil
+        end
+        if scrapsEnabled then
+            if pickupMethod == "Without Remote Event" then
+                task.spawn(scanItems)
+            else
+                pickupWithRemoteScraps()
+            end
+        end
+    end
+})
+
+MiscRight:AddToggle('ToggleTools', {
+    Text = "AutoPickup Tools",
+    Default = false,
+    Callback = function(Value)
+        toolsEnabled = Value
+        if toolsConnection then
+            toolsConnection:Disconnect()
+            toolsConnection = nil
+        end
+        if toolsEnabled then
+            if pickupMethod == "Without Remote Event" then
+                task.spawn(scanItems)
+            else
+                pickupWithRemoteTools()
+            end
+        end
+    end
+})
+
+MiscRight:AddToggle('ToggleCrates', {
+    Text = "AutoPickup Crates",
+    Default = false,
+    Callback = function(Value)
+        cratesEnabled = Value
+        if cratesConnection then
+            cratesConnection:Disconnect()
+            cratesConnection = nil
+        end
+        if cratesEnabled then
+            if pickupMethod == "Without Remote Event" then
+                task.spawn(scanItems)
+            else
+                pickupWithRemoteCrates()
+            end
+        end
+    end
+})
+
+MiscRight:AddToggle('ToggleCash', {
+    Text = "AutoPickup Money",
+    Default = false,
+    Callback = function(Value)
+        cashEnabled = Value
+        if moneyConnection then
+            moneyConnection:Disconnect()
+            moneyConnection = nil
+        end
+        if cashEnabled then
+            if pickupMethod == "Without Remote Event" then
+                task.spawn(scanItems)
+            else
+                pickupWithRemoteMoney()
+            end
+        end
+    end
+})
+
+MiscRight:AddDropdown('PickupMethod', {
+    Text = "Pickup Method",
+    Default = "Without Remote Event",
+    Values = {"Without Remote Event", "With Remote Event"},
+    Callback = function(Value)
+        pickupMethod = Value
+        if scrapsConnection then
+            scrapsConnection:Disconnect()
+            scrapsConnection = nil
+        end
+        if toolsConnection then
+            toolsConnection:Disconnect()
+            toolsConnection = nil
+        end
+        if cratesConnection then
+            cratesConnection:Disconnect()
+            cratesConnection = nil
+        end
+        if moneyConnection then
+            moneyConnection:Disconnect()
+            moneyConnection = nil
+        end
+        if scrapsEnabled then
+            if pickupMethod == "Without Remote Event" then
+                task.spawn(scanItems)
+            else
+                pickupWithRemoteScraps()
+            end
+        end
+        if toolsEnabled then
+            if pickupMethod == "Without Remote Event" then
+                task.spawn(scanItems)
+            else
+                pickupWithRemoteTools()
+            end
+        end
+        if cratesEnabled then
+            if pickupMethod == "Without Remote Event" then
+                task.spawn(scanItems)
+            else
+                pickupWithRemoteCrates()
+            end
+        end
+        if cashEnabled then
+            if pickupMethod == "Without Remote Event" then
+                task.spawn(scanItems)
+            else
+                pickupWithRemoteMoney()
+            end
+        end
+    end
+})
+
 MiscLeft2:AddButton({
     Text = "Anti-blur",
     Func = function()
@@ -5307,6 +6753,41 @@ MiscLeft2:AddToggle('AntiFlashBangToggle', {
                 Item.Enabled = false
             end
         end)
+    end
+})
+
+MiscLeft2:AddToggle('AntiOverlayToggle', {
+    Text = "Anti-Overlay",
+    Default = false,
+    Callback = function(Value)
+        _G.NoOverlay = Value
+        game.Players.LocalPlayer.PlayerGui.ChildAdded:Connect(function(Item)
+            if Item.Name == "OverlayGUI" then
+                Item.Enabled = not _G.NoOverlay
+            end
+        end)
+        if game.Players.LocalPlayer.PlayerGui:FindFirstChild("OverlayGUI") then
+            game.Players.LocalPlayer.PlayerGui.OverlayGUI.Enabled = not _G.NoOverlay
+        end
+    end
+})
+
+Client = Players.LocalPlayer
+
+MiscLeft2:AddToggle('NoVisorToggle', {
+    Text = 'Anti Visor / Helmet',
+    Default = false,
+    Callback = function(Value)
+        for _, GUI in pairs(Client.PlayerGui:GetDescendants()) do
+            if GUI.Name == "HelmetOverlayGUI" then
+                GUI.Enabled = not Value
+                GUI:GetPropertyChangedSignal("Enabled"):Connect(function()
+                    if Value then
+                        GUI.Enabled = false
+                    end
+                end)
+            end
+        end
     end
 })
 
@@ -5535,6 +7016,22 @@ game:GetService("RunService").RenderStepped:Connect(function(deltaTime)
         end
     end
 end)
+
+MiscRight3:AddButton({
+    Text = 'Toggle Vibecheck Elevator',
+    Func = function()
+        Knob = Workspace.Map.Doors.Elevator_28.Knob1
+        Client = game:GetService("Players").LocalPlayer
+        if Client.Character then
+            Client.Character.HumanoidRootPart.CFrame = Knob.CFrame
+            Prompt = Knob:WaitForChild("ProximityPrompt")
+            task.wait(0.05)
+            for Index = 1, 10 do 
+                fireproximityprompt(Prompt)
+            end
+        end
+    end
+})
 
 function createBendoverTool()
     SleepTool = Instance.new("Tool")
@@ -5871,21 +7368,565 @@ for name, id in pairs(Animations) do
     })
 end
 
-MiscRight3:AddButton({
-    Text = 'Toggle Vibecheck Elevator',
-    Func = function()
-        Knob = Workspace.Map.Doors.Elevator_28.Knob1
-        Client = game:GetService("Players").LocalPlayer
-        if Client.Character then
-            Client.Character.HumanoidRootPart.CFrame = Knob.CFrame
-            Prompt = Knob:WaitForChild("ProximityPrompt")
-            task.wait(0.05)
-            for Index = 1, 10 do 
-                fireproximityprompt(Prompt)
-            end
-        end
+Messages = {
+    SteelHub = {
+        "SteelHub vibes! Dominate with style!",
+        "Unleash chaos with SteelHub power!",
+        "Top-tier gameplay? SteelHub way!",
+        "Crush it with SteelHub magic!",
+        "SteelHub hype! Rule the game!",
+        "Stay ahead with SteelHub elite!",
+        "Game just got better! SteelHub zone!",
+        "SteelHub flow! Outplay everyone!",
+        "Be a legend with SteelHub rise!",
+        "Own the game with SteelHub energy!",
+        "SteelHub squad! Lead the pack!",
+        "Pros choose SteelHub glory!",
+        "Level up your game! SteelHub fire!",
+        "SteelHub rush! Make every moment count!",
+        "Master the game with SteelHub skill!",
+        "No one stops SteelHub!",
+        "Game’s finest? That’s SteelHub!",
+        "SteelHub spark! Ignite your run!",
+        "Play smarter with SteelHub edge!",
+        "Domination starts with SteelHub!"
+    },
+    Russian = {
+        "Я в игре, и это уже победа!",
+        "Кто тут главный? Очевидно я!",
+        "Играю так, что все в шоке!",
+        "Это мой момент, не мешайте!",
+        "Смотрите и учитесь, новички!",
+        "Я в деле, и это чувствуется!",
+        "Геймплей на миллион, как всегда!",
+        "Кто хочет попробовать? Го!",
+        "Я тут, чтобы всех удивить!",
+        "Игра идет, а я на волне!",
+        "Мой вайб в игре непобедим!",
+        "Кто следующий? Я готов!",
+        "Играю, как будто это финал!",
+        "Все смотрят на меня, и не зря!",
+        "Я в игре, и это шоу!",
+        "Кто может лучше? Никто!",
+        "Мой стиль в игре? Безупречно!",
+        "Игра кипит, а я на вершине!",
+        "Я тут, чтобы зажечь!",
+        "Геймплей? Я его определяю!",
+        "Я рулю в этой игре, попробуй догони!",
+        "Мои скиллы просто огонь, держись!",
+        "В игре я король, без вопросов!",
+        "Мой вайб — это чистый взрыв!",
+        "Я здесь, чтобы доминировать!",
+        "Играю так, что все завидуют!",
+        "Мой стиль не повторить, учись!",
+        "Я в игре, и это эпик!",
+        "Кто хочет бросить вызов? Я жду!",
+        "Мои мувы — это чистое золото!",
+        "Я задаю тон в этой игре!",
+        "Играю, как профи, без шансов!",
+        "Мой геймплей — это легенда!",
+        "Я в игре, и это мой трон!",
+        "Кто может тягаться? Никто!",
+        "Мои скиллы сияют ярче всех!",
+        "Я здесь, чтобы всех порвать!",
+        "Игра кипит, а я на пике!",
+        "Мой вайб — это чистый адреналин!",
+        "Я играю, как будто это кино!",
+        "Мои мувы — это чистый класс!",
+        "Я в игре, и это мой мир!",
+        "Кто следующий? Я уже готов!",
+        "Мой стиль в игре — это шедевр!",
+        "Играю так, что все в агонии!",
+        "Я здесь, чтобы всех удивить!",
+        "Мой геймплей — это чистый флекс!",
+        "Я рулю, а вы лишь смотрите!",
+        "Мои скиллы — это чистый взрыв!",
+        "Я в игре, и это мой спектакль!",
+        "Кто хочет попробовать? Вперед!",
+        "Мой стиль — это чистая магия!",
+        "Я играю, как будто я босс!",
+        "Мои мувы — это чистый вайб!",
+        "Я здесь, чтобы всех затмить!",
+        "Играю так, что все в восторге!",
+        "Мой геймплей — это чистый шик!",
+        "Я в игре, и это мой момент!",
+        "Кто может лучше? Да никто!",
+        "Мои скиллы — это чистый огонь!",
+        "Я здесь, чтобы всех разнести!",
+        "Игра кипит, а я на волне!",
+        "Мой вайб — это чистый триумф!",
+        "Я играю, как будто я звезда!",
+        "Мои мувы — это чистый фокус!",
+        "Я в игре, и это мой путь!",
+        "Кто следующий? Я наготове!",
+        "Мой стиль — это чистый блеск!",
+        "Играю так, что все в шоке!",
+        "Мой геймплей — это чистый хайп!",
+        "Я рулю, а вы лишь мечтаете!",
+        "Мои скиллы — это чистый класс!",
+        "Я в игре, и это мой пик!",
+        "Кто хочет вызов? Я здесь!",
+        "Мой стиль — это чистый вайб!",
+        "Я играю, как будто я легенда!",
+        "Мои мувы — это чистый триумф!",
+        "Я здесь, чтобы всех покорить!",
+        "Играю так, что все в ауте!",
+        "Мой геймплей — это чистый фейерверк!",
+        "Я в игре, и это мой трон!",
+        "Кто может тягаться? Никто!",
+        "Мои скиллы — это чистый космос!",
+        "Я здесь, чтобы всех взорвать!"
+    },
+    English = {
+        "I’m in the game, and it’s already a win!",
+        "Who’s the boss? Yeah, that’s me!",
+        "Playing so good, everyone’s stunned!",
+        "This is my time, don’t interrupt!",
+        "Watch and learn, newbies!",
+        "I’m here, and it’s a vibe!",
+        "Gameplay’s on point, as usual!",
+        "Who wants a challenge? Let’s go!",
+        "I’m here to steal the show!",
+        "Game’s on, and I’m riding the wave!",
+        "My vibe in game? Unbeatable!",
+        "Who’s next? I’m ready!",
+        "Playing like it’s the grand final!",
+        "All eyes on me, and for good reason!",
+        "I’m in, and it’s a spectacle!",
+        "Who can top this? No one!",
+        "My game style? Flawless!",
+        "Game’s heating up, and I’m on top!",
+        "I’m here to light it up!",
+        "Gameplay? I’m setting the standard!",
+        "I’m running this game, catch up!",
+        "My skills are pure fire, watch out!",
+        "I’m the king of this game, no doubt!",
+        "My vibe’s a total explosion!",
+        "I’m here to dominate, step up!",
+        "Playing so good, they’re jealous!",
+        "My style’s untouchable, learn it!",
+        "I’m in the game, and it’s epic!",
+        "Who wants to test me? I’m ready!",
+        "My moves are straight gold!",
+        "I’m setting the pace in this game!",
+        "Playing like a pro, no contest!",
+        "My gameplay’s a legend already!",
+        "I’m in, and this is my throne!",
+        "Who can match me? Nobody!",
+        "My skills shine brighter than all!",
+        "I’m here to crush it, watch me!",
+        "Game’s on fire, and I’m the spark!",
+        "My vibe’s pure adrenaline rush!",
+        "I’m playing like it’s a movie!",
+        "My moves are pure class, see it!",
+        "I’m in the game, and it’s my world!",
+        "Who’s next? I’m locked and loaded!",
+        "My style’s a masterpiece, study it!",
+        "Playing so good, they’re shook!",
+        "My gameplay’s pure hype, feel it!",
+        "I’m running the show, just watch!",
+        "My skills are a total blast!",
+        "I’m in, and it’s my stage!",
+        "Who wants a shot? I’m waiting!",
+        "My style’s pure magic, behold!",
+        "I’m playing like I’m the boss!",
+        "My moves are pure vibe, catch it!",
+        "I’m here to outshine everyone!",
+        "Playing so good, they’re stunned!",
+        "My gameplay’s pure flair, see it!",
+        "I’m in the game, and it’s my time!",
+        "Who can do better? No one!",
+        "My skills are pure heat, feel it!",
+        "I’m here to wreck it, let’s go!",
+        "Game’s alive, and I’m the pulse!",
+        "My vibe’s a total triumph!",
+        "I’m playing like a superstar!",
+        "My moves are pure focus, watch!",
+        "I’m in, and it’s my journey!",
+        "Who’s up next? I’m prepped!",
+        "My style’s pure shine, check it!",
+        "Playing so good, it’s unreal!",
+        "My gameplay’s a total banger!",
+        "I’m ruling, and you’re just dreaming!",
+        "My skills are pure class, own it!",
+        "I’m in the game, and it’s my peak!",
+        "Who wants a challenge? I’m here!",
+        "My style’s pure vibe, feel it!",
+        "I’m playing like I’m a legend!",
+        "My moves are pure victory!",
+        "I’m here to conquer it all!",
+        "Playing so good, they’re out!",
+        "My gameplay’s a pure fireworks show!",
+        "I’m in, and it’s my crown!",
+        "Who can compete? Nobody!",
+        "My skills are pure cosmos!",
+        "I’m here to blow it up!"
+    },
+    TrashTalk = {
+        English = {
+            "GET GOOD HOLY",
+            "WOW LOL YOURE ACTUALLY SO TRASH",
+            "I CANT BELIEVE THATS YOUR AIM",
+            "AINT A WAY YOU AIM LIKE THAT LOOOOOOL",
+            "MY GRANDMA CAN AIM BETTER THAN THAT LOOOOOOOOOOOOOL",
+            "WOW, I STARTED TO FALL ASLEEP YOURE SO BAD",
+            "Bro, your aim’s so lame it hurts to watch!",
+            "Your moves are so weak I’m falling asleep!",
+            "You’re playing like a noob who just spawned!",
+            "Did you even try to aim or just give up?",
+            "Your skills are so boring I’m zoning out!",
+            "Bro, my pet fish could dodge better!",
+            "You’re moving like a sleepy turtle!",
+            "That was your best move? I’m laughing!",
+            "Your gameplay’s so weak it’s painful!",
+            "Bro, you’re playing like a lost newbie!",
+            "Your aim’s so off it’s a total joke!",
+            "You’re out here flopping every second!",
+            "Did you aim at the clouds for fun?",
+            "Your moves are so lame I’m yawning!",
+            "Bro, my cat could play better than you!",
+            "You’re so weak it’s almost funny!",
+            "Your skills are napping on the job!",
+            "You’re playing like you forgot the keys!",
+            "Bro, that move was pure nonsense!",
+            "Your aim’s so bad it’s a world record!",
+            "You’re moving like a stuck robot!",
+            "Did you learn to play from a brick?",
+            "Your gameplay’s so dull I’m nodding off!",
+            "Bro, you’re the king of weak plays!",
+            "You’re out here missing every shot!",
+            "Your aim’s like a broken compass!",
+            "You’re playing like a confused bot!",
+            "Bro, my lamp could aim better!",
+            "Your moves are a total snooze!",
+            "You’re so slow I forgot you’re here!",
+            "Did you aim at the floor or what?",
+            "Your gameplay’s a complete mess!",
+            "Bro, you’re the champ of lame moves!",
+            "You’re playing like you’re half asleep!",
+            "Your skills are lost in the dark!",
+            "You’re out here failing every chance!",
+            "Bro, my chair could dodge better!",
+            "Your aim’s so weak it’s a comedy!",
+            "You’re moving like a frozen snail!",
+            "Did you trip over your own skills?",
+            "Your gameplay’s a total flop show!",
+            "Bro, you’re playing like a rookie!",
+            "Your moves are pure chaos, not good!",
+            "You’re so bad it’s kinda hilarious!",
+            "Bro, my toaster could play better!",
+            "Your aim’s so off it’s a mystery!",
+            "You’re playing like a lagging noob!",
+            "Did you forget how to move or what?",
+            "Your gameplay’s a walking disaster!",
+            "Bro, you’re the master of weak plays!",
+            "You’re out here fumbling every move!",
+            "Your aim’s so lame it’s iconic!",
+            "You’re moving like a tired sloth!",
+            "Bro, that was a legendary flop!",
+            "Your skills are hiding in a void!",
+            "You’re playing like you just started!",
+            "Did you aim at the sky for laughs?",
+            "Your gameplay’s a pure trainwreck!",
+            "Bro, my pillow could aim better!",
+            "You’re so weak it’s almost epic!",
+            "Your moves are a big facepalm!",
+            "You’re out here losing with flair!",
+            "Bro, you’re playing like a sleepy bot!",
+            "Your aim’s so bad it’s historic!",
+            "Did you learn to play from a rock?",
+            "Your gameplay’s making me dizzy!",
+            "Bro, you’re the emperor of flops!",
+            "You’re moving like a broken toy!",
+            "Your aim’s so weak it’s a myth!",
+            "You’re playing like a total newbie!",
+            "Bro, my fridge could dodge better!",
+            "Your moves are a complete oof!",
+            "You’re so bad it’s almost art!",
+            "Did you aim at the moon for fun?",
+            "Your gameplay’s a total wipeout!",
+            "Bro, you’re the king of noob plays!",
+            "You’re out here missing with style!",
+            "Your aim’s so off it’s unreal!",
+            "You’re playing like a confused noob!",
+            "Bro, that move was pure chaos!",
+            "Your skills are stuck in a loop!",
+            "You’re moving like a lazy zombie!",
+            "Did you forget the game controls?",
+            "Your gameplay’s a total yawn!",
+            "Bro, my table could play better!",
+            "You’re so weak it’s a spectacle!",
+            "Your aim’s like a wild guess!",
+            "You’re playing like you’re lost!",
+            "Bro, you’re the champ of fails!",
+            "Your moves are a total blur!",
+            "You’re out here flopping hard!",
+            "Did you aim at nothing or what?",
+            "Your gameplay’s a pure meltdown!",
+            "Bro, my shoe could aim better!",
+            "You’re so bad it’s a legend!",
+            "Your aim’s so weak it’s a farce!",
+            "You’re playing like a sleepy rookie!",
+            "Bro, that was a massive whiff!",
+            "Your skills are nowhere to be found!",
+            "You’re out here failing with gusto!",
+            "Did you trip on your own moves?",
+            "Your gameplay’s a complete bust!",
+            "Bro, my rug could dodge better!",
+            "You’re moving like a stuck wheel!",
+            "Your aim’s so bad it’s a saga!",
+            "You’re playing like a dazed bot!",
+            "Bro, you’re the lord of weak plays!",
+            "Your moves are a total letdown!",
+            "You’re so bad it’s almost cool!",
+            "Did you aim at the stars or what?",
+            "Your gameplay’s a pure fiasco!",
+            "Bro, my cup could play better!",
+            "You’re out here losing every round!",
+            "Your aim’s so lame it’s a tale!",
+            "You’re playing like a noob in panic!",
+            "Bro, that move was a total dud!",
+            "Your skills are asleep at the wheel!",
+            "You’re moving like a rusty gear!",
+            "Did you forget how to aim or what?",
+            "Your gameplay’s a complete haze!",
+            "Bro, my sock could aim better!",
+            "You’re so weak it’s a masterpiece!",
+            "Your aim’s like a broken radar!",
+            "You’re playing like a baffled noob!",
+            "Bro, you’re the prince of flops!",
+            "Your moves are a total washout!",
+            "You’re out here failing in style!",
+            "Did you aim at the void for kicks?",
+            "Your gameplay’s a pure calamity!",
+            "Bro, my hat could dodge better!",
+            "You’re so bad it’s a phenomenon!",
+            "Your aim’s so weak it’s a story!",
+            "You’re playing like a zoned-out bot!",
+            "Bro, that was a colossal miss!",
+            "Your skills are lost in the mist!",
+            "You’re out here flopping with flair!",
+            "Did you trip over your own aim?",
+            "Your gameplay’s a total shambles!",
+            "Bro, my pen could play better!",
+            "You’re moving like a sleepy ghost!",
+            "Your aim’s so bad it’s a chronicle!",
+            "You’re playing like a rookie in shock!",
+            "Bro, you’re the duke of weak plays!",
+            "Your moves are a complete flop!",
+            "You’re so bad it’s almost mythic!",
+            "Did you aim at the ground for fun?",
+            "Your gameplay’s a pure disaster!",
+            "Bro, my spoon could aim better!",
+            "You’re out here losing with gusto!",
+            "Your aim’s so lame it’s a legend!",
+            "You’re playing like a clueless bot!",
+            "Bro, that move was a total bust!",
+            "Your skills are stuck in the mud!",
+            "You’re moving like a tired bot!",
+            "Did you forget the game or what?",
+            "Your gameplay’s a complete blur!",
+            "Bro, my book could dodge better!"
+        },
+        Russian = {
+            "Серьезно, это твой прицел? Ха!",
+            "Бро, мой хомяк быстрее бегает!",
+            "Ты забыл, как играть, или что?",
+            "Твои скиллы где-то в отпуске!",
+            "Боты и то лучше играют!",
+            "Ты вообще стараешься или троллишь?",
+            "Мой младший брат тебя уделает!",
+            "Это твой лучший выстрел? Скука!",
+            "Твой геймплей? Спящий режим!",
+            "Твой прицел как у штурмовика!",
+            "Сказал бы 'хорошая попытка', но нет!",
+            "Твои движения такие предсказуемые!",
+            "Бро, удали игру, спаси нас!",
+            "Даже мой вайфай играет лучше!",
+            "Ты играешь, будто без пальцев!",
+            "Мой пёс лучше уклоняется!",
+            "Это твой план? Я ржу!",
+            "Ты движешься, как статуя!",
+            "Ты с закрытыми глазами целишься?",
+            "Твой геймплей — это кринж!",
+            "Бро, ты делаешь это слишком легко!",
+            "Какая отмазка теперь? Лаги?",
+            "Ты так слаб, я устал смотреть!",
+            "Ты играешь, как сломанный джойстик!",
+            "Моя рыбка лучше целится!",
+            "Твой мув — это просто зевота!",
+            "Ты тонешь в игре, как в болоте!",
+            "Ты учишься промахиваться или как?",
+            "Твои скиллы застряли на старте!",
+            "Я ржу с твоего прицела!",
+            "Бро, ты как мем с фейлами!",
+            "Это игра? Нет, это твой сон!",
+            "Твой прицел — это комедия!",
+            "Даже картошка лучше играет!",
+            "Ты как в клею застрял!",
+            "Бро, это мастер-класс по промахам!",
+            "Твой геймплей — сплошная скука!",
+            "Ты учишься играть у тостера?",
+            "Ты так медленный, я тебя забыл!",
+            "Твой прицел — это головная боль!",
+            "Бро, ты король плохих мувов!",
+            "Твои скиллы в вечном отпуске!",
+            "Мне скучно смотреть на твой фейл!",
+            "Ты играешь, как в первый раз!",
+            "Бро, твой прицел — это анекдот!",
+            "Ты спотыкаешься на пустом месте!",
+            "Ты в небо целишься специально?",
+            "Твой геймплей — это катастрофа!",
+            "Мой кот тебя переиграет!",
+            "Ты так слаб, это почти искусство!",
+            "Бро, твой фейл войдет в историю!",
+            "Ты играешь, как полусонный!",
+            "Твой прицел — это легенда!",
+            "Твой прицел как в тумане!",
+            "Бро, ты играешь, как ржавый бот!",
+            "Твои мувы — полный краш!",
+            "Ты вообще читал управление?",
+            "Твой прицел такой слабый, я в шоке!",
+            "Бро, ты чемпион по промахам!",
+            "Это твой план? Сплошной провал!",
+            "Ты движешься, как сонная черепаха!",
+            "Твой геймплей — это тоска, проснись!",
+            "Бро, ты аллергик на победы!",
+            "Твой прицел — это просто рандом!",
+            "Ты играешь, как потерянный нуб!",
+            "Ты споткнулся о свои скиллы?",
+            "Твои мувы — это сплошной ржач!",
+            "Бро, ты застрял в режиме фейла!",
+            "Твой прицел такой плохой, это классика!",
+            "Ты играешь, будто наобум!",
+            "Твой геймплей — это хаос, ооф!",
+            "Бро, мой улитка тебя обгонит!",
+            "Ты так слаб, это даже смешно!",
+            "Твой прицел уже сдался!",
+            "Ты забыл, для чего кнопки?",
+            "Ты играешь, как лагающий бот!",
+            "Бро, это был курс по фейлам!",
+            "Твои мувы — хаос, но не крутой!",
+            "Ты фейлишь с особым шиком!",
+            "Твой прицел не знает, куда целиться!",
+            "Бро, ты мастер задыхаться на старте!",
+            "Ты играешь, как с завязанными глазами!",
+            "Твои скиллы улетели в космос!",
+            "Бро, моя лампа лучше играет!",
+            "Ты движешься, как замороженный сок!",
+            "Твой прицел — это мировой рекорд фейлов!",
+            "Бро, ты играешь, как сонный зомби!",
+            "Твои мувы — это поездка в никуда!",
+            "Ты фейлишь каждую секунду!",
+            "Ты целишься в пол для прикола?",
+            "Твой геймплей — это шоу клоунов!",
+            "Бро, мой стул лучше уклоняется!",
+            "Ты так слаб, это почти круто!",
+            "Твой прицел — как сломанный компас!",
+            "Ты играешь, как растерянный бот!",
+            "Бро, этот мув был просто бред!",
+            "Твои скиллы спят на работе!",
+            "Ты промахиваешься каждую минуту!",
+            "Ты учишься играть у камня?",
+            "Твой геймплей кружит голову!",
+            "Бро, ты император фейлов!",
+            "Ты движешься, как робот без батареек!",
+            "Твой прицел — это сплошная загадка!",
+            "Ты играешь, как новичок в панике!",
+            "Бро, мой холодильник лучше целится!",
+            "Твои мувы — это сплошной фейспалм!",
+            "Ты проигрываешь с особым стилем!",
+            "Ты целишься в луну или как?",
+            "Твой геймплей — это ходячий ооф!",
+            "Бро, ты мастер эпичных провалов!",
+            "Ты играешь, как в странном сне!",
+            "Твой прицел — это исторический фейл!",
+            "Ты движешься, как уставшая улитка!",
+            "Бро, это был легендарный промах!",
+            "Твои скиллы прячутся во тьме!",
+            "Ты играешь, как нуб наобум!",
+            "Ты забыл, как двигаться, или что?",
+            "Твой геймплей — это полный вынос!",
+            "Бро, моя подушка лучше играет!",
+            "Ты играешь, как на автопилоте!",
+            "Твой прицел — это просто миф!",
+            "Бро, ты застрял в прошлом веке!",
+            "Твои мувы — это сплошной лол!",
+            "Ты фейлишь, как настоящий профи!",
+            "Твой прицел тонет в болоте!",
+            "Бро, ты играешь, как в замедленке!",
+            "Твои скиллы ушли в спячку!",
+            "Ты промахнулся в миллионный раз!",
+            "Ты учишься у чайника играть?",
+            "Твой геймплей — это сплошной ржач!",
+            "Бро, ты король эпичных фейлов!",
+            "Ты движешься, как ленивый кот!",
+            "Твой прицел — это чистый анриал!",
+            "Ты играешь, как в параллельной реальности!",
+            "Бро, мой кактус лучше целится!",
+            "Твои мувы — это полный абсурд!",
+            "Ты проигрываешь с особым шармом!",
+            "Ты целишься в другую игру или что?",
+            "Твой геймплей — это мемный фейл!",
+            "Бро, ты чемпион по лузам!",
+            "Ты играешь, как в полусне!",
+            "Твой прицел — это сплошной трэш!",
+            "Ты движешься, как сонный мишка!",
+            "Бро, это был фейл века!",
+            "Твои скиллы утонули в луже!",
+            "Ты играешь, как заблудший нуб!",
+            "Ты забыл, где кнопки, или как?",
+            "Твой геймплей — это чистый краш!",
+            "Бро, мой тапок лучше играет!"
+        }
+    }
+}
+
+IsSpamming = false
+SelectedMode = "SteelHub"
+TrashTalkLanguage = "English"
+LastMessageTime = 0
+Cooldown = 2.6
+
+MiscRight4:AddToggle('SpamToggle', {
+    Text = 'Chat Spam',
+    Default = false,
+    Callback = function(Value)
+        IsSpamming = Value
     end
 })
+
+MiscRight4:AddDropdown('ModeDropdown', {
+    Values = { 'SteelHub', 'Russian', 'English', 'TrashTalk' },
+    Default = 1,
+    Text = 'Message Type',
+    Callback = function(Value)
+        SelectedMode = Value
+    end
+})
+
+MiscRight4:AddDropdown('TrashTalkLanguageDropdown', {
+    Values = { 'English', 'Russian' },
+    Default = 1,
+    Text = 'TrashTalk Language',
+    Callback = function(Value)
+        TrashTalkLanguage = Value
+    end
+})
+
+task.spawn(function()
+    while true do
+        if IsSpamming and (tick() - LastMessageTime >= Cooldown) then
+            if SelectedMode == "TrashTalk" then
+                game:GetService("TextChatService").TextChannels.RBXGeneral:SendAsync(Messages.TrashTalk[TrashTalkLanguage][math.random(1, #Messages.TrashTalk[TrashTalkLanguage])])
+            else
+                game:GetService("TextChatService").TextChannels.RBXGeneral:SendAsync(Messages[SelectedMode][math.random(1, #Messages[SelectedMode])])
+            end
+            LastMessageTime = tick()
+        end
+        wait(0.1)
+    end
+end)
 
 AdminCheck_Enabled = false
 AdminCheck_Connection = nil
