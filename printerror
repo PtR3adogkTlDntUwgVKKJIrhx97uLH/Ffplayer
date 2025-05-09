@@ -67,6 +67,9 @@ SectionSettings = {
         Smooth = false,
         SmoothSize = 0.5,
         Velocity = false
+    },
+    PepperSprayAura = {
+        CheckWhitelist = false
     }
 }
 
@@ -111,6 +114,41 @@ CombatLeft4 = Tabs.Combat:AddLeftGroupbox('Others Guns (RISK FOR BAN)')
 
 GlobalWhiteList = {}
 GlobalTarget = {}
+HighlightStorage = {}
+
+function UpdateHighlight(player, isWhitelisted, isTargeted, whitelistColor, targetColor)
+    if not player.Character then return end
+    if HighlightStorage[player] then
+        HighlightStorage[player]:Destroy()
+        HighlightStorage[player] = nil
+    end
+    if isWhitelisted or isTargeted then
+        highlight = Instance.new("Highlight")
+        highlight.Adornee = player.Character
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.FillColor = isTargeted and targetColor or whitelistColor
+        highlight.OutlineColor = isTargeted and targetColor or whitelistColor
+        highlight.Parent = player.Character
+        HighlightStorage[player] = highlight
+    end
+end
+
+function UpdateAllHighlights()
+    whitelistColor = (Options.WhitelistColorPicker and Options.WhitelistColorPicker.Value) or Color3.new(0, 1, 0)
+    targetColor = (Options.TargetColorPicker and Options.TargetColorPicker.Value) or Color3.new(1, 0, 0)
+    for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+        isWhitelisted = false
+        isTargeted = false
+        for name, _ in pairs(GlobalWhiteList) do
+            if name == player.Name then isWhitelisted = true end
+        end
+        for name, _ in pairs(GlobalTarget) do
+            if name == player.Name then isTargeted = true end
+        end
+        UpdateHighlight(player, isWhitelisted, isTargeted, whitelistColor, targetColor)
+    end
+end
 
 CombatLeft:AddDropdown('GlobalWhiteListDropdown', {
     SpecialType = 'Player',
@@ -118,6 +156,8 @@ CombatLeft:AddDropdown('GlobalWhiteListDropdown', {
     Text = 'Whitelist Players',
     Callback = function(Value)
         GlobalWhiteList = Value
+        task.wait()
+        UpdateAllHighlights()
     end
 })
 
@@ -127,8 +167,51 @@ CombatLeft:AddDropdown('GlobalTargetDropdown', {
     Text = 'Target Players',
     Callback = function(Value)
         GlobalTarget = Value
+        task.wait()
+        UpdateAllHighlights()
     end
 })
+
+CombatLeft:AddLabel('Whitelist Color'):AddColorPicker('WhitelistColorPicker', {
+    Default = Color3.new(0, 1, 0),
+    Title = 'Whitelist Highlight',
+    Transparency = 0,
+    Callback = function()
+        task.wait()
+        UpdateAllHighlights()
+    end
+})
+
+CombatLeft:AddLabel('Target Color'):AddColorPicker('TargetColorPicker', {
+    Default = Color3.new(1, 0, 0),
+    Title = 'Target Highlight',
+    Transparency = 0,
+    Callback = function()
+        task.wait()
+        UpdateAllHighlights()
+    end
+})
+
+game:GetService("Players").PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function()
+        task.wait()
+        UpdateAllHighlights()
+    end)
+end)
+
+game:GetService("Players").PlayerRemoving:Connect(function(player)
+    if HighlightStorage[player] then
+        HighlightStorage[player]:Destroy()
+        HighlightStorage[player] = nil
+    end
+end)
+
+game:GetService("RunService").Heartbeat:Connect(function()
+    if Options.WhitelistColorPicker and Options.TargetColorPicker then
+        UpdateAllHighlights()
+        return
+    end
+end)
 
 CombatLeft1:AddToggle('MeleeAuraToggle', {
     Text = 'Melee Aura',
@@ -512,16 +595,20 @@ circle.Color = SectionSettings.SilentAim.DrawColor
 circle.Filled = false
 circle.Radius = SectionSettings.SilentAim.DrawSize
 
-game:GetService("RunService").RenderStepped:Connect(function()
+renderConnection = nil
+function UpdateCircle()
+    if renderConnection then renderConnection:Disconnect() end
     if functions.silentaimF and SectionSettings.SilentAim.DrawCircle then
-        circle.Position = Vector2.new(game:GetService("UserInputService"):GetMouseLocation().X, game:GetService("UserInputService"):GetMouseLocation().Y)
-        circle.Visible = true
-        circle.Radius = SectionSettings.SilentAim.DrawSize
-        circle.Color = SectionSettings.SilentAim.DrawColor
+        renderConnection = game:GetService("RunService").RenderStepped:Connect(function()
+            circle.Position = Vector2.new(game:GetService("UserInputService"):GetMouseLocation().X, game:GetService("UserInputService"):GetMouseLocation().Y)
+            circle.Visible = true
+            circle.Radius = SectionSettings.SilentAim.DrawSize
+            circle.Color = SectionSettings.SilentAim.DrawColor
+        end)
     else
         circle.Visible = false
     end
-end)
+end
 
 function UrTargetFunc()
     if not functions.silentaimF then return nil end
@@ -529,23 +616,16 @@ function UrTargetFunc()
     minDistance = SectionSettings.SilentAim.DrawSize
     mousePos = game:GetService("UserInputService"):GetMouseLocation()
     for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
-        if player == game:GetService("Players").LocalPlayer or not player.Character then continue end
+        if player == game:GetService("Players").LocalPlayer or not player.Character or player.Character:FindFirstChildOfClass("ForceField") then continue end
         if SectionSettings.SilentAim.CheckWhitelist and GlobalWhiteList[player.Name] then continue end
         if SectionSettings.SilentAim.CheckTeam and player.Team == game:GetService("Players").LocalPlayer.Team then continue end
         targetPart = SectionSettings.SilentAim.TargetPart == "Random" and player.Character:FindFirstChild(ValidSilentTargetParts[math.random(1, #ValidSilentTargetParts)]) or player.Character:FindFirstChild(SectionSettings.SilentAim.TargetPart or "Head")
         if targetPart then
-            if SectionSettings.SilentAim.CheckWall then
-                if #workspace.CurrentCamera:GetPartsObscuringTarget({targetPart.Position}, {workspace.CurrentCamera, game:GetService("Players").LocalPlayer.Character, player.Character}) > 0 then
-                    continue
-                end
-            end
+            if SectionSettings.SilentAim.CheckWall and #workspace.CurrentCamera:GetPartsObscuringTarget({targetPart.Position}, {workspace.CurrentCamera, game:GetService("Players").LocalPlayer.Character, player.Character}) > 0 then continue end
             screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(targetPart.Position)
-            if onScreen then
-                distance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
-                if distance < minDistance then
-                    minDistance = distance
-                    closestPlayer = player
-                end
+            if onScreen and (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude < minDistance then
+                minDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+                closestPlayer = player
             end
         end
     end
@@ -557,6 +637,7 @@ CombatLeft2:AddToggle('SilentAimToggle', {
     Default = false,
     Callback = function(Value)
         functions.silentaimF = Value
+        UpdateCircle()
         if not Value then
             currentTarget = nil
             if remotes.SilentAimTask then
@@ -570,16 +651,14 @@ CombatLeft2:AddToggle('SilentAimToggle', {
         else
             VisualizeEvent = game:GetService("ReplicatedStorage").Events2.Visualize
             DamageEvent = game:GetService("ReplicatedStorage").Events["ZFKLF__H"]
-            if not remotes.SilentAimTask then
-                remotes.SilentAimTask = task.spawn(function()
-                    while functions.silentaimF do
-                        currentTarget = UrTargetFunc()
-                        game:GetService("RunService").Heartbeat:Wait()
-                    end
-                end)
-            end
+            remotes.SilentAimTask = task.spawn(function()
+                while functions.silentaimF do
+                    currentTarget = UrTargetFunc()
+                    game:GetService("RunService").Heartbeat:Wait()
+                end
+            end)
             visualizeConnection = VisualizeEvent.Event:Connect(function(_, ShotCode, _, Gun, _, StartPos, BulletsPerShot)
-                if not Gun or not currentTarget or not currentTarget.Character or currentTarget.Character:FindFirstChildOfClass("ForceField") then return end
+                if not functions.silentaimF or not Gun or not currentTarget or not currentTarget.Character or currentTarget.Character:FindFirstChildOfClass("ForceField") then return end
                 playerTool = game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Tool")
                 if not playerTool or Gun ~= playerTool then return end
                 HitPart = SectionSettings.SilentAim.TargetPart == "Random" and currentTarget.Character:FindFirstChild(ValidSilentTargetParts[math.random(1, #ValidSilentTargetParts)]) or currentTarget.Character:FindFirstChild(SectionSettings.SilentAim.TargetPart or "Head")
@@ -614,6 +693,7 @@ CombatLeft2:AddToggle('SilentAimDrawCircle', {
     Default = false,
     Callback = function(Value)
         SectionSettings.SilentAim.DrawCircle = Value
+        UpdateCircle()
     end
 })
 
@@ -995,15 +1075,13 @@ PepperAuraToggle = CombatRight3:AddToggle('PepperAura', {
             task.spawn(function()
                 while PepperSprayAura_Enabled do
                     game:GetService("RunService").RenderStepped:Wait()
-                    
                     player = game.Players.LocalPlayer
                     char = player.Character
-                    
                     if char and char:FindFirstChild("Pepper-spray") then
                         for _, v in pairs(game.Players:GetPlayers()) do
                             if v ~= player and v.Character and v.Character:FindFirstChild("HumanoidRootPart") then
+                                if SectionSettings.PepperSprayAura.CheckWhitelist and GlobalWhiteList[v.Name] then continue end
                                 dist = (char:FindFirstChild("HumanoidRootPart").Position - v.Character:FindFirstChild("HumanoidRootPart").Position).Magnitude
-                                
                                 if dist < 15 then
                                     char["Pepper-spray"].RemoteEvent:FireServer("Spray", true)
                                     char["Pepper-spray"].RemoteEvent:FireServer("Hit", v.Character)
@@ -1019,6 +1097,14 @@ PepperAuraToggle = CombatRight3:AddToggle('PepperAura', {
     end
 })
 
+CombatRight3:AddToggle('PepperSprayCheckWhitelist', {
+    Text = 'Check Whitelist',
+    Default = false,
+    Callback = function(Value)
+        SectionSettings.PepperSprayAura.CheckWhitelist = Value
+    end
+})
+
 Settings = {
     Enabled = false,
     Color = Color3.fromRGB(255, 0, 0),
@@ -1030,8 +1116,17 @@ functions = {}
 functions.instant_reloadF = false
 activeTracers = {}
 maxTracers = 10
-
 originalValues = {}
+reloadConnections = {}
+weaponTables = {}
+lastGunModulesTime = 0
+gunModulesCooldown = 0.5
+
+for _, v in pairs(getgc(true)) do
+    if type(v) == 'table' and rawget(v, 'EquipTime') then
+        weaponTables[#weaponTables + 1] = v
+    end
+end
 
 safeGet = function(obj, path, default)
     current = obj
@@ -1055,19 +1150,9 @@ CombatLeft4:AddToggle('Wallbang', {
             parts = map:FindFirstChild("Parts")
             if parts then
                 mParts = parts:FindFirstChild("M_Parts")
-                if mParts then
-                    if wallbangEnabled and mParts.Parent ~= workspaceService:FindFirstChild("Characters") then
-                        mParts.Parent = workspaceService:FindFirstChild("Characters")
-                    elseif not wallbangEnabled and mParts.Parent ~= parts then
-                        mParts.Parent = parts
-                    end
+                if mParts and mParts.Parent ~= (wallbangEnabled and workspaceService:FindFirstChild("Characters") or parts) then
+                    mParts.Parent = wallbangEnabled and workspaceService:FindFirstChild("Characters") or parts
                 end
-            end
-        end
-        if not wallbangEnabled then
-            wait(0.1)
-            if mParts and mParts.Parent ~= parts then
-                mParts.Parent = parts
             end
         end
     end
@@ -1079,6 +1164,10 @@ CombatLeft4:AddToggle('InstantReload', {
     Tooltip = "Reloads weapon instantly",
     Callback = function(Value)
         functions.instant_reloadF = Value
+        for _, conn in pairs(reloadConnections) do
+            conn:Disconnect()
+        end
+        reloadConnections = {}
         if Value then
             spawn(instantreloadL)
         end
@@ -1088,92 +1177,50 @@ CombatLeft4:AddToggle('InstantReload', {
 instantreloadL = function()
     gunR_remote = game:GetService("ReplicatedStorage").Events["GNX_R"]
     me = game:GetService("Players").LocalPlayer
-    if functions.instant_reloadF and me then
-        charme = me.Character
-        if charme then
-            tool = charme:FindFirstChildOfClass("Tool")
-            if tool and tool:FindFirstChild("IsGun") then
-                value = tool:FindFirstChild("Values"):FindFirstChild("SERVER_Ammo")
-                value2 = tool:FindFirstChild("Values"):FindFirstChild("SERVER_StoredAmmo")
-                if value2 then
-                    value2:GetPropertyChangedSignal("Value"):Connect(function()
-                        if functions.instant_reloadF and value2.Value ~= 0 then
-                            gunR_remote:FireServer(tick(), "KLWE89U0", tool)
-                        end
-                    end)
-                end
-                if value2 and value2.Value ~= 0 then
-                    if functions.instant_reloadF then
+    function setupTool(tool)
+        if tool and tool:FindFirstChild("IsGun") and functions.instant_reloadF then
+            value = tool:FindFirstChild("Values"):FindFirstChild("SERVER_Ammo")
+            value2 = tool:FindFirstChild("Values"):FindFirstChild("SERVER_StoredAmmo")
+            if value2 then
+                reloadConnections[#reloadConnections + 1] = value2:GetPropertyChangedSignal("Value"):Connect(function()
+                    if functions.instant_reloadF and value2.Value ~= 0 then
                         gunR_remote:FireServer(tick(), "KLWE89U0", tool)
                     end
-                end
-                if value then
-                    value:GetPropertyChangedSignal("Value"):Connect(function()
-                        if functions.instant_reloadF and value2 and value2.Value ~= 0 then
-                            gunR_remote:FireServer(tick(), "KLWE89U0", tool)
-                        end
-                    end)
-                end
+                end)
             end
-            charme.ChildAdded:Connect(function(obj)
-                if obj:IsA("Tool") and obj:FindFirstChild("IsGun") then
-                    if functions.instant_reloadF then
-                        value = obj:FindFirstChild("Values"):FindFirstChild("SERVER_Ammo")
-                        value2 = obj:FindFirstChild("Values"):FindFirstChild("SERVER_StoredAmmo")
-                        if value2 then
-                            value2:GetPropertyChangedSignal("Value"):Connect(function()
-                                if functions.instant_reloadF then
-                                    gunR_remote:FireServer(tick(), "KLWE89U0", obj)
-                                end
-                            end)
-                        end
-                        if value2 and value2.Value ~= 0 then
-                            if functions.instant_reloadF then
-                                gunR_remote:FireServer(tick(), "KLWE89U0", obj)
-                            end
-                        end
-                        if value then
-                            value:GetPropertyChangedSignal("Value"):Connect(function()
-                                if functions.instant_reloadF and value2 and value2.Value ~= 0 then
-                                    gunR_remote:FireServer(tick(), "KLWE89U0", obj)
-                                end
-                            end)
-                        end
-                    end
-                end
-            end)
-            me.CharacterAdded:Connect(function(charr)
-                repeat wait() until charr and charr.Parent
-                charr.ChildAdded:Connect(function(obj)
-                    if obj:IsA("Tool") and obj:FindFirstChild("IsGun") then
-                        if functions.instant_reloadF then
-                            value = obj:FindFirstChild("Values"):FindFirstChild("SERVER_Ammo")
-                            value2 = obj:FindFirstChild("Values"):FindFirstChild("SERVER_StoredAmmo")
-                            if value2 then
-                                value2:GetPropertyChangedSignal("Value"):Connect(function()
-                                    if functions.instant_reloadF then
-                                        gunR_remote:FireServer(tick(), "KLWE89U0", obj)
-                                    end
-                                end)
-                            end
-                            if value2 and value2.Value ~= 0 then
-                                if functions.instant_reloadF then
-                                    gunR_remote:FireServer(tick(), "KLWE89U0", obj)
-                                end
-                            end
-                            if value then
-                                value:GetPropertyChangedSignal("Value"):Connect(function()
-                                    if functions.instant_reloadF and value2 and value2.Value ~= 0 then
-                                        gunR_remote:FireServer(tick(), "KLWE89U0", obj)
-                                    end
-                                end)
-                            end
-                        end
+            if value then
+                reloadConnections[#reloadConnections + 1] = value:GetPropertyChangedSignal("Value"):Connect(function()
+                    if functions.instant_reloadF and value2 and value2.Value ~= 0 then
+                        gunR_remote:FireServer(tick(), "KLWE89U0", tool)
                     end
                 end)
-            end)
+            end
         end
     end
+    if me.Character then
+        charme = me.Character
+        tool = charme:FindFirstChildOfClass("Tool")
+        setupTool(tool)
+        reloadConnections[#reloadConnections + 1] = charme.ChildAdded:Connect(function(obj)
+            if obj:IsA("Tool") then
+                setupTool(obj)
+            end
+        end)
+    end
+    reloadConnections[#reloadConnections + 1] = me.CharacterAdded:Connect(function(charr)
+        repeat task.wait() until charr and charr.Parent
+        for _, conn in pairs(reloadConnections) do
+            conn:Disconnect()
+        end
+        reloadConnections = {}
+        tool = charr:FindFirstChildOfClass("Tool")
+        setupTool(tool)
+        reloadConnections[#reloadConnections + 1] = charr.ChildAdded:Connect(function(obj)
+            if obj:IsA("Tool") then
+                setupTool(obj)
+            end
+        end)
+    end)
 end
 
 CombatLeft4:AddToggle('NoRecoil', {
@@ -1181,9 +1228,7 @@ CombatLeft4:AddToggle('NoRecoil', {
     Default = false,
     Tooltip = 'Removes weapon recoil',
     Callback = function(Value)
-        if Toggles then
-            GunModules()
-        end
+        GunModules()
     end
 })
 
@@ -1192,9 +1237,7 @@ CombatLeft4:AddToggle('Spread', {
     Default = false,
     Tooltip = 'Eliminates bullet spread',
     Callback = function(Value)
-        if Toggles then
-            GunModules()
-        end
+        GunModules()
     end
 })
 
@@ -1203,9 +1246,7 @@ CombatLeft4:AddToggle('EquipAnimSpeed', {
     Default = false,
     Tooltip = 'Adjusts weapon equip animation speed',
     Callback = function(Value)
-        if Toggles then
-            GunModules()
-        end
+        GunModules()
     end
 })
 
@@ -1214,9 +1255,7 @@ CombatLeft4:AddToggle('AimAnimSpeed', {
     Default = false,
     Tooltip = 'Adjusts aiming animation speed',
     Callback = function(Value)
-        if Toggles then
-            GunModules()
-        end
+        GunModules()
     end
 })
 
@@ -1263,7 +1302,9 @@ CombatLeft4:AddSlider('AimSpeedAmount', {
 })
 
 GunModules = function()
-    for i, v in pairs(getgc(true)) do
+    if tick() - lastGunModulesTime < gunModulesCooldown then return end
+    lastGunModulesTime = tick()
+    for _, v in pairs(weaponTables) do
         if type(v) == 'table' and rawget(v, 'EquipTime') then
             if not originalValues[v] then
                 originalValues[v] = {
@@ -1282,102 +1323,25 @@ GunModules = function()
                     FireModeSettings = type(v.FireModeSettings) == 'table' and table.clone(v.FireModeSettings) or v.FireModeSettings
                 }
             end
-            if not Toggles or not Toggles.NoRecoil or not Toggles.NoRecoil.Value then
-                v.Recoil = originalValues[v].Recoil
-                v.AngleX_Min = originalValues[v].AngleX_Min
-                v.AngleX_Max = originalValues[v].AngleX_Max
-                v.AngleY_Min = originalValues[v].AngleY_Min
-                v.AngleY_Max = originalValues[v].AngleY_Max
-                v.AngleZ_Min = originalValues[v].AngleZ_Min
-                v.AngleZ_Max = originalValues[v].AngleZ_Max
-            else
-                v.Recoil = 0
-                v.AngleX_Min = 0
-                v.AngleX_Max = 0
-                v.AngleY_Min = 0
-                v.AngleY_Max = 0
-                v.AngleZ_Min = 0
-                v.AngleZ_Max = 0
-            end
-            if not Toggles or not Toggles.Spread or not Toggles.Spread.Value then
-                v.Spread = originalValues[v].Spread
-            else
-                v.Spread = 0
-            end
-            if not Toggles or not Toggles.EquipAnimSpeed or not Toggles.EquipAnimSpeed.Value then
-                v.EquipTime = originalValues[v].EquipTime or 0.5
-            else
-                equipTime = safeGet(Options, {"EquipTimeAmount", "Value"}, 0)
-                v.EquipTime = equipTime
-            end
-            if not Toggles or not Toggles.AimAnimSpeed or not Toggles.AimAnimSpeed.Value then
-                if v.AimSettings and v.SniperSettings then
-                    v.AimSettings.AimSpeed = originalValues[v].AimSpeed
-                    v.SniperSettings.AimSpeed = originalValues[v].AimSpeed
-                end
-            else
-                if v.AimSettings and v.SniperSettings then
-                    aimSpeed = safeGet(Options, {"AimSpeedAmount", "Value"}, 0)
-                    v.AimSettings.AimSpeed = aimSpeed
-                    v.SniperSettings.AimSpeed = aimSpeed
-                end
-            end
-        end
-    end
-    local player = game:GetService("Players").LocalPlayer
-    if player.Character then
-        local tool = player.Character:FindFirstChildOfClass("Tool")
-        if tool and tool:FindFirstChild("IsGun") then
-            for i, v in pairs(getgc(true)) do
-                if type(v) == 'table' and rawget(v, 'EquipTime') and v == tool then
-                    if not originalValues[v] then
-                        originalValues[v] = {
-                            Recoil = v.Recoil or 0,
-                            AngleX_Min = v.AngleX_Min or 0,
-                            AngleX_Max = v.AngleX_Max or 0,
-                            AngleY_Min = v.AngleY_Min or 0,
-                            AngleY_Max = v.AngleY_Max or 0,
-                            AngleZ_Min = v.AngleZ_Min or 0,
-                            AngleZ_Max = v.AngleZ_Max or 0,
-                            Spread = v.Spread or 0,
-                            EquipTime = v.EquipTime or 0.5,
-                            AimSpeed = (v.AimSettings and v.AimSettings.AimSpeed) or 1,
-                            ChargeTime = v.ChargeTime or 0,
-                            SlowDown = v.SlowDown or 0,
-                            FireModeSettings = type(v.FireModeSettings) == 'table' and table.clone(v.FireModeSettings) or v.FireModeSettings
-                        }
-                    end
-                    if not Toggles or not Toggles.NoRecoil or not Toggles.NoRecoil.Value then
-                        v.Recoil = originalValues[v].Recoil
-                        v.AngleX_Min = originalValues[v].AngleX_Min
-                        v.AngleX_Max = originalValues[v].AngleX_Max
-                        v.AngleY_Min = originalValues[v].AngleY_Min
-                        v.AngleY_Max = originalValues[v].AngleY_Max
-                        v.AngleZ_Min = originalValues[v].AngleZ_Min
-                        v.AngleZ_Max = originalValues[v].AngleZ_Max
-                    else
-                        v.Recoil = 0
-                        v.AngleX_Min = 0
-                        v.AngleX_Max = 0
-                        v.AngleY_Min = 0
-                        v.AngleY_Max = 0
-                        v.AngleZ_Min = 0
-                        v.AngleZ_Max = 0
-                    end
-                    if not Toggles or not Toggles.Spread or not Toggles.Spread.Value then
-                        v.Spread = originalValues[v].Spread
-                    else
-                        v.Spread = 0
-                    end
-                end
+            v.Recoil = (Toggles and Toggles.NoRecoil and Toggles.NoRecoil.Value) and 0 or originalValues[v].Recoil
+            v.AngleX_Min = (Toggles and Toggles.NoRecoil and Toggles.NoRecoil.Value) and 0 or originalValues[v].AngleX_Min
+            v.AngleX_Max = (Toggles and Toggles.NoRecoil and Toggles.NoRecoil.Value) and 0 or originalValues[v].AngleX_Max
+            v.AngleY_Min = (Toggles and Toggles.NoRecoil and Toggles.NoRecoil.Value) and 0 or originalValues[v].AngleY_Min
+            v.AngleY_Max = (Toggles and Toggles.NoRecoil and Toggles.NoRecoil.Value) and 0 or originalValues[v].AngleY_Max
+            v.AngleZ_Min = (Toggles and Toggles.NoRecoil and Toggles.NoRecoil.Value) and 0 or originalValues[v].AngleZ_Min
+            v.AngleZ_Max = (Toggles and Toggles.NoRecoil and Toggles.NoRecoil.Value) and 0 or originalValues[v].AngleZ_Max
+            v.Spread = (Toggles and Toggles.Spread and Toggles.Spread.Value) and 0 or originalValues[v].Spread
+            v.EquipTime = (Toggles and Toggles.EquipAnimSpeed and Toggles.EquipAnimSpeed.Value) and safeGet(Options, {"EquipTimeAmount", "Value"}, 0) or originalValues[v].EquipTime
+            if v.AimSettings and v.SniperSettings then
+                v.AimSettings.AimSpeed = (Toggles and Toggles.AimAnimSpeed and Toggles.AimAnimSpeed.Value) and safeGet(Options, {"AimSpeedAmount", "Value"}, 0) or originalValues[v].AimSpeed
+                v.SniperSettings.AimSpeed = (Toggles and Toggles.AimAnimSpeed and Toggles.AimAnimSpeed.Value) and safeGet(Options, {"AimSpeedAmount", "Value"}, 0) or originalValues[v].AimSpeed
             end
         end
     end
 end
 
 function createTracer(startPos, endPos)
-    if not Settings.Enabled then return end
-    if not startPos or not endPos then return end
+    if not Settings.Enabled or not startPos or not endPos then return end
     while #activeTracers >= maxTracers do
         oldestTracer = table.remove(activeTracers, 1)
         if oldestTracer and oldestTracer.tracer:IsDescendantOf(game) then
@@ -1409,8 +1373,8 @@ function createTracer(startPos, endPos)
     tracer.Parent = game.Workspace
     tracerData = {tracer = tracer, startTime = tick()}
     table.insert(activeTracers, tracerData)
-    animCoroutine = coroutine.create(function()
-        wait(1)
+    spawn(function()
+        task.wait(1)
         for t = 0, 1, 0.025 do
             if tracer and tracer.Parent then
                 tracer.Transparency = t
@@ -1418,7 +1382,7 @@ function createTracer(startPos, endPos)
             if particleEmitter and particleEmitter.Parent then
                 particleEmitter.Rate = math.max(0, 8 - t * 8)
             end
-            wait(0.025)
+            task.wait(0.025)
         end
         for i, activeTracer in ipairs(activeTracers) do
             if activeTracer.tracer == tracer then
@@ -1433,7 +1397,6 @@ function createTracer(startPos, endPos)
             tracer:Destroy()
         end
     end)
-    coroutine.resume(animCoroutine)
     game.Debris:AddItem(tracer, 1.5)
 end
 
@@ -1448,7 +1411,6 @@ isShooting = false
 lastShotTime = 0
 shotCooldown = 0.05
 lastRaycastTime = 0
-lastBulletHoleTime = 0
 
 findWeaponHandle = function(characterFolder)
     if not characterFolder then return nil end
@@ -1467,37 +1429,39 @@ if Character then
     end
     Character.ChildAdded:Connect(function(child)
         if child:IsA("Tool") and child:FindFirstChild("IsGun") then
-            if Toggles then
-                GunModules()
+            for _, v in pairs(getgc(true)) do
+                if type(v) == 'table' and rawget(v, 'EquipTime') then
+                    weaponTables[#weaponTables + 1] = v
+                end
             end
+            GunModules()
         end
     end)
 end
 
 UserInputService.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and Settings.Enabled then
         isShooting = true
         lastShotTime = tick()
         if not Character then
             Character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
         end
         characterFolder = workspace.Characters:FindFirstChild(playerName)
-        if not characterFolder then return end
-        weaponHandle = findWeaponHandle(characterFolder)
-        if not weaponHandle then return end
-        startPos = weaponHandle.Position
-        mouse = Players.LocalPlayer:GetMouse()
-        endPos = mouse.Hit.Position
-        ray = Ray.new(startPos, (endPos - startPos).Unit * 1000)
-        raycastParams = RaycastParams.new()
-        raycastParams.FilterDescendantsInstances = {Character}
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-        raycastResult = workspace:Raycast(startPos, (endPos - startPos).Unit * 1000, raycastParams)
-        if raycastResult and (tick() - lastRaycastTime > 0.05) then
-            endPos = raycastResult.Position
-            if raycastResult.Instance.Parent:FindFirstChild("Humanoid") or raycastResult.Instance.Name == "BulletHole" then
-                createTracer(startPos, endPos)
-                lastRaycastTime = tick()
+        if characterFolder then
+            weaponHandle = findWeaponHandle(characterFolder)
+            if weaponHandle then
+                startPos = weaponHandle.Position
+                mouse = Players.LocalPlayer:GetMouse()
+                endPos = mouse.Hit.Position
+                raycastParams = RaycastParams.new()
+                raycastParams.FilterDescendantsInstances = {Character}
+                raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+                raycastResult = workspace:Raycast(startPos, (endPos - startPos).Unit * 1000, raycastParams)
+                if raycastResult and (tick() - lastRaycastTime > shotCooldown) then
+                    endPos = raycastResult.Position
+                    createTracer(startPos, endPos)
+                    lastRaycastTime = tick()
+                end
             end
         end
     end
@@ -1509,28 +1473,6 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
-workspace.Debris.ChildAdded:Connect(function(child)
-    if not Settings.Enabled then return end
-    if child.ClassName == "Part" and child.Name == "BulletHole" then
-        if not isShooting and (tick() - lastShotTime > shotCooldown) then return end
-        if tick() - lastBulletHoleTime < shotCooldown then return end
-        if not Character then
-            Character = Players.LocalPlayer.Character or Players.LocalPlayer.CharacterAdded:Wait()
-        end
-        characterFolder = workspace.Characters:FindFirstChild(playerName)
-        if not characterFolder then return end
-        weaponHandle = findWeaponHandle(characterFolder)
-        if not weaponHandle then return end
-        startPos = weaponHandle.Position
-        endPos = child.Position
-        if (startPos - endPos).Magnitude < 1000 then
-            createTracer(startPos, endPos)
-            lastBulletHoleTime = tick()
-            lastShotTime = tick()
-        end
-    end
-end)
-
 Players.LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     Character = newCharacter
     playerName = Players.LocalPlayer.Name
@@ -1538,14 +1480,20 @@ Players.LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     if characterFolder then
         weaponHandle = findWeaponHandle(characterFolder)
     end
-    if Toggles then
-        GunModules()
+    for _, v in pairs(getgc(true)) do
+        if type(v) == 'table' and rawget(v, 'EquipTime') then
+            weaponTables[#weaponTables + 1] = v
+        end
     end
+    GunModules()
     newCharacter.ChildAdded:Connect(function(child)
         if child:IsA("Tool") and child:FindFirstChild("IsGun") then
-            if Toggles then
-                GunModules()
+            for _, v in pairs(getgc(true)) do
+                if type(v) == 'table' and rawget(v, 'EquipTime') then
+                    weaponTables[#weaponTables + 1] = v
+                end
             end
+            GunModules()
         end
     end)
 end)
@@ -2454,15 +2402,6 @@ function UpdateChinaHat()
         if player.Character and player.Character:FindFirstChild("Head") and player.Character:FindFirstChild("Humanoid") then
             Humanoid = player.Character.Humanoid
             if Humanoid.Health > 0 then
-                IsWhitelisted = false
-                if GlobalWhiteList and type(GlobalWhiteList) == "table" then
-                    for _, name in pairs(GlobalWhiteList) do
-                        if name == player.Name then
-                            IsWhitelisted = true
-                            break
-                        end
-                    end
-                end
                 ShouldShowHat = (player == LocalPlayer) or IsWhitelisted
                 if ShouldShowHat then
                     if not ChinaHats[player.Character] then
@@ -2607,31 +2546,6 @@ function UpdateVisuals()
             end
         end
     end
-end
-
-function HasWhiteListChanged()
-    if not GlobalWhiteList or not type(GlobalWhiteList) == "table" then
-        GlobalWhiteList = {}
-    end
-    currentWhiteList = {}
-    for _, name in pairs(GlobalWhiteList) do
-        table.insert(currentWhiteList, name)
-    end
-    table.sort(currentWhiteList)
-    
-    if #currentWhiteList ~= #LastWhiteList then
-        LastWhiteList = currentWhiteList
-        return true
-    end
-    
-    for i, name in ipairs(currentWhiteList) do
-        if LastWhiteList[i] ~= name then
-            LastWhiteList = currentWhiteList
-            return true
-        end
-    end
-    
-    return false
 end
 
 ESPEnabledToggle = VisualsLeft:AddToggle('ESPEnabled', {
@@ -2989,9 +2903,6 @@ WeaponImageSizeSlider = VisualsLeft:AddSlider('WeaponImageSize', {
 game:GetService("RunService").RenderStepped:Connect(function()
     UpdateLookDirection()
     UpdateDynamicESP()
-    if HasWhiteListChanged() then
-        UpdateChinaHat()
-    end
     if ESPEnabled then
         UpdateESP()
     end
@@ -4556,7 +4467,40 @@ NoclipToggle = MovementLeft2:AddToggle('NoclipToggle', {
     Callback = function(Value)
         _G.Noclip = Value
     end
+}):AddKeyPicker('NoclipKey', {
+    Default = 'None',
+    SyncToggleState = true,
+    Mode = 'Toggle',
+    Text = 'Noclip'
 })
+
+_G.Backwards = false
+
+MovementRight2:AddToggle('BackwardsToggle', {
+    Text = "Walk Backwards",
+    Default = false,
+    Callback = function(Value)
+        _G.Backwards = Value
+    end
+})
+
+game:GetService("RunService").RenderStepped:Connect(function()
+    if _G.Backwards then
+        camera = workspace.CurrentCamera
+        lookDir = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z).Unit
+        targetCFrame = CFrame.new(Vector3.new(0, 0, 0), lookDir) * CFrame.Angles(0, math.pi, 0)
+        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(game.Players.LocalPlayer.Character.HumanoidRootPart.Position) * targetCFrame
+    end
+end)
+
+game.Players.LocalPlayer.CharacterAdded:Connect(function(newChar)
+    if _G.Backwards then
+        camera = workspace.CurrentCamera
+        lookDir = Vector3.new(camera.CFrame.LookVector.X, 0, camera.CFrame.LookVector.Z).Unit
+        targetCFrame = CFrame.new(Vector3.new(0, 0, 0), lookDir) * CFrame.Angles(0, math.pi, 0)
+        newChar.HumanoidRootPart.CFrame = CFrame.new(newChar.HumanoidRootPart.Position) * targetCFrame
+    end
+end)
 
 NoJumpDelay = false
 
@@ -6802,6 +6746,7 @@ loopConnections = {}
 tpActive = false
 selectedPlayer = nil
 targetPos = nil
+customPos = nil
 
 TeleportTargets = {
     Motel = Vector3.new(-4618.79932, 3.29673815, -903.594055),
@@ -6871,7 +6816,7 @@ function teleportToLocation(targetPosition, offsetDistance, targetType)
         end
         event:FireServer("__---r", Vector3.new(0, 0, 0), hrp.CFrame)
         hrp.CanCollide = false
-        task.wait(0.1)
+        task.wait(0.001)
         hrp.CanCollide = true
     end
 end
@@ -6888,6 +6833,8 @@ function CreateTeleportToggle(name, flag, targetType)
                     target = FindNearestTarget("ATM")
                     offsetDistance = 4
                     targetPos = target and target.Position
+                elseif targetType == "CreateXYZ" then
+                    targetPos = customPos
                 elseif targetType == "Dealer" then
                     target = FindNearestTarget("Dealer")
                     offsetDistance = 3
@@ -6933,6 +6880,18 @@ CreateTeleportToggle("Teleport to Mountain 3", "TP_Mountain3", "Mountain3")
 CreateTeleportToggle("Teleport to Save Cube", "TP_SaveCube", "SaveCube")
 CreateTeleportToggle("Teleport to Save Vibe", "TP_SaveVibe", "SaveVibe")
 CreateTeleportToggle("Teleport to Save Mount", "TP_SaveMount", "SaveMount")
+CreateTeleportToggle("Teleport to Custom XYZ", "TP_CustomXYZ", "CreateXYZ")
+MiscLeft3:AddInput("CustomXYZ", {
+    Text = "Custom XYZ",
+    Default = "0, 0, 0",
+    Placeholder = "x, y, z",
+    Callback = function(Value)
+        x, y, z = Value:match("(%-?%d+%.?%d*), (%-?%d+%.?%d*), (%-?%d+%.?%d*)")
+        if x and y and z then
+            customPos = Vector3.new(tonumber(x), tonumber(y), tonumber(z))
+        end
+    end
+})
 
 antiAimEnabled = false
 antiAimSpeed = 1
@@ -7927,6 +7886,52 @@ task.spawn(function()
         wait(0.1)
     end
 end)
+
+p = game:GetService("Players").LocalPlayer
+enabled = false
+
+function f()
+    pcall(function()
+        game:GetService("VirtualUser"):CaptureController()
+        game:GetService("VirtualUser"):SetKeyDown('0x20')
+        task.wait(0.1)
+        game:GetService("VirtualUser"):SetKeyUp('0x20')
+    end)
+    pcall(function()
+        w = workspace.CurrentCamera
+        w.CFrame = w.CFrame * CFrame.Angles(math.rad(0.5),0,0)
+        task.wait(0.1)
+        w.CFrame = w.CFrame * CFrame.Angles(math.rad(-0.5),0,0)
+    end)
+end
+
+function enable()
+    if enabled then return end
+    enabled = true
+    c1 = p.Idled:Connect(function() if enabled then f() end end)
+    coroutine.resume(coroutine.create(function()
+        while enabled do f() task.wait(30) end
+    end))
+    c2 = p.CharacterAdded:Connect(function()
+        task.wait(1)
+        if enabled then f() end
+    end)
+end
+
+function disable()
+    if not enabled then return end
+    enabled = false
+    if c1 then c1:Disconnect() c1 = nil end
+    if c2 then c2:Disconnect() c2 = nil end
+end
+
+MiscRight3:AddToggle('AntiAFKToggle', {
+    Text = "Anti AFK",
+    Default = false,
+    Callback = function(v)
+        if v then enable() else disable() end
+    end
+})
 
 AdminCheck_Enabled = false
 AdminCheck_Connection = nil
