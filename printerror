@@ -1095,6 +1095,11 @@ PepperAuraToggle = CombatRight3:AddToggle('PepperAura', {
             end)
         end
     end
+}):AddKeyPicker('PepperSprayKey', {
+    Default = 'None',
+    SyncToggleState = true,
+    Mode = 'Toggle',
+    Text = 'PepperSpray Aura'
 })
 
 CombatRight3:AddToggle('PepperSprayCheckWhitelist', {
@@ -1119,14 +1124,6 @@ maxTracers = 10
 originalValues = {}
 reloadConnections = {}
 weaponTables = {}
-lastGunModulesTime = 0
-gunModulesCooldown = 0.5
-
-for _, v in pairs(getgc(true)) do
-    if type(v) == 'table' and rawget(v, 'EquipTime') then
-        weaponTables[#weaponTables + 1] = v
-    end
-end
 
 safeGet = function(obj, path, default)
     current = obj
@@ -1228,6 +1225,13 @@ CombatLeft4:AddToggle('NoRecoil', {
     Default = false,
     Tooltip = 'Removes weapon recoil',
     Callback = function(Value)
+        if Value and #weaponTables == 0 then
+            for _, v in pairs(getgc(true)) do
+                if type(v) == 'table' and rawget(v, 'EquipTime') then
+                    weaponTables[#weaponTables + 1] = v
+                end
+            end
+        end
         GunModules()
     end
 })
@@ -1237,6 +1241,13 @@ CombatLeft4:AddToggle('Spread', {
     Default = false,
     Tooltip = 'Eliminates bullet spread',
     Callback = function(Value)
+        if Value and #weaponTables == 0 then
+            for _, v in pairs(getgc(true)) do
+                if type(v) == 'table' and rawget(v, 'EquipTime') then
+                    weaponTables[#weaponTables + 1] = v
+                end
+            end
+        end
         GunModules()
     end
 })
@@ -1246,6 +1257,13 @@ CombatLeft4:AddToggle('EquipAnimSpeed', {
     Default = false,
     Tooltip = 'Adjusts weapon equip animation speed',
     Callback = function(Value)
+        if Value and #weaponTables == 0 then
+            for _, v in pairs(getgc(true)) do
+                if type(v) == 'table' and rawget(v, 'EquipTime') then
+                    weaponTables[#weaponTables + 1] = v
+                end
+            end
+        end
         GunModules()
     end
 })
@@ -1255,6 +1273,13 @@ CombatLeft4:AddToggle('AimAnimSpeed', {
     Default = false,
     Tooltip = 'Adjusts aiming animation speed',
     Callback = function(Value)
+        if Value and #weaponTables == 0 then
+            for _, v in pairs(getgc(true)) do
+                if type(v) == 'table' and rawget(v, 'EquipTime') then
+                    weaponTables[#weaponTables + 1] = v
+                end
+            end
+        end
         GunModules()
     end
 })
@@ -1302,8 +1327,6 @@ CombatLeft4:AddSlider('AimSpeedAmount', {
 })
 
 GunModules = function()
-    if tick() - lastGunModulesTime < gunModulesCooldown then return end
-    lastGunModulesTime = tick()
     for _, v in pairs(weaponTables) do
         if type(v) == 'table' and rawget(v, 'EquipTime') then
             if not originalValues[v] then
@@ -1427,16 +1450,6 @@ if Character then
     if characterFolder then
         weaponHandle = findWeaponHandle(characterFolder)
     end
-    Character.ChildAdded:Connect(function(child)
-        if child:IsA("Tool") and child:FindFirstChild("IsGun") then
-            for _, v in pairs(getgc(true)) do
-                if type(v) == 'table' and rawget(v, 'EquipTime') then
-                    weaponTables[#weaponTables + 1] = v
-                end
-            end
-            GunModules()
-        end
-    end)
 end
 
 UserInputService.InputBegan:Connect(function(input)
@@ -1480,22 +1493,17 @@ Players.LocalPlayer.CharacterAdded:Connect(function(newCharacter)
     if characterFolder then
         weaponHandle = findWeaponHandle(characterFolder)
     end
-    for _, v in pairs(getgc(true)) do
-        if type(v) == 'table' and rawget(v, 'EquipTime') then
-            weaponTables[#weaponTables + 1] = v
-        end
-    end
-    GunModules()
-    newCharacter.ChildAdded:Connect(function(child)
-        if child:IsA("Tool") and child:FindFirstChild("IsGun") then
+    if (Toggles.NoRecoil and Toggles.NoRecoil.Value) or (Toggles.Spread and Toggles.Spread.Value) or 
+       (Toggles.EquipAnimSpeed and Toggles.EquipAnimSpeed.Value) or (Toggles.AimAnimSpeed and Toggles.AimAnimSpeed.Value) then
+        if #weaponTables == 0 then
             for _, v in pairs(getgc(true)) do
                 if type(v) == 'table' and rawget(v, 'EquipTime') then
                     weaponTables[#weaponTables + 1] = v
                 end
             end
-            GunModules()
         end
-    end)
+        GunModules()
+    end
 end)
 
 VisualsLeft = Tabs.Visuals:AddLeftGroupbox('Player esp')
@@ -5646,142 +5654,18 @@ DeathRespawn_Event = game:GetService("ReplicatedStorage"):WaitForChild("Events")
 
 AutoFarmEnabled = false
 AutoClaimAllowanceCoolDown = false
-HiddenBodyActive = false
 Teleporting = false
+ATMUsage = {}
 
-floatName = nil
-floatPart = nil
-animationTrack = nil
-Noclipping = nil
-Clip = true
-FloatConnection = nil
-
-function randomString()
-    chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    str = ""
-    for i = 1, 10 do
-        local rand = math.random(1, #chars)
-        str = str .. chars:sub(rand, rand)
+function WaitForCharacter()
+    while not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") do
+        task.wait(0.1)
     end
-    return str
-end
-
-function EnableHiddenBody()
-    if HiddenBodyActive then return end
-
-    character = LocalPlayer.Character
-    if not character then return end
-    humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoidRootPart or not humanoid then return end
-
-    floatName = randomString()
-    floatPart = Instance.new("Part")
-    floatPart.Name = floatName
-    floatPart.Size = Vector3.new(2, 0.2, 1.5)
-    floatPart.Transparency = 1
-    floatPart.Anchored = true
-    floatPart.CanCollide = true
-    floatPart.Parent = Workspace
-    floatHeight = -5.4
-    floatPart.CFrame = humanoidRootPart.CFrame * CFrame.new(0, floatHeight, 0)
-
-    animation = Instance.new("Animation")
-    animation.AnimationId = "rbxassetid://282574440"
-    animationTrack = humanoid:LoadAnimation(animation)
-    animationTrack:Play()
-
-    humanoidRootPart.CollisionGroup = "RagdollCollide2"
-    Clip = false
-    Noclipping = RunService.Stepped:Connect(function()
-        if not Clip and character then
-            for _, child in pairs(character:GetDescendants()) do
-                if child:IsA("BasePart") and child.CanCollide and child.Name ~= floatName then
-                    child.CanCollide = false
-                end
-            end
-        end
-    end)
-
-    targetHeight = floatPart.Position.Y - 5.4
-    humanoidRootPart.CFrame = CFrame.new(
-        humanoidRootPart.Position.X,
-        targetHeight,
-        humanoidRootPart.Position.Z
-    )
-
-    FloatConnection = RunService.Heartbeat:Connect(function()
-        if floatPart and humanoidRootPart and HiddenBodyActive then
-            floatPart.CFrame = CFrame.new(
-                humanoidRootPart.Position.X,
-                floatPart.Position.Y,
-                humanoidRootPart.Position.Z
-            )
-            desiredHeight = floatPart.Position.Y + 0.2
-            if humanoidRootPart.Position.Y < desiredHeight then
-                humanoidRootPart.CFrame = CFrame.new(
-                    humanoidRootPart.Position.X,
-                    desiredHeight,
-                    humanoidRootPart.Position.Z
-                )
-            end
-        end
-    end)
-
-    HiddenBodyActive = true
-end
-
-function DisableHiddenBody()
-    if not HiddenBodyActive then return end
-
-    if Noclipping then
-        Noclipping:Disconnect()
-        Noclipping = nil
-    end
-    if FloatConnection then
-        FloatConnection:Disconnect()
-        FloatConnection = nil
-    end
-    if floatPart then
-        floatPart:Destroy()
-        floatPart = nil
-    end
-    if animationTrack then
-        animationTrack:Stop()
-        animationTrack = nil
-    end
-
-    character = LocalPlayer.Character
-    if character then
-        humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        humanoid = character:FindFirstChildOfClass("Humanoid")
-        if humanoidRootPart and humanoid then
-            Clip = true
-            humanoidRootPart.CollisionGroup = "Default"
-            for _, child in pairs(character:GetDescendants()) do
-                if child:IsA("BasePart") then
-                    child.CanCollide = true
-                    child.Velocity = Vector3.new(0, 0, 0)
-                    child.RotVelocity = Vector3.new(0, 0, 0)
-                end
-            end
-            humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-            task.wait(0.1)
-            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-            humanoid.PlatformStand = false
-            humanoidRootPart.Anchored = false
-            humanoid.Sit = false
-            humanoid.AutoRotate = true
-        end
-    end
-
-    HiddenBodyActive = false
+    return LocalPlayer.Character, LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 end
 
 function GetATM()
-    character = LocalPlayer.Character
-    if not character then return nil, math.huge end
-    hrp = character:FindFirstChild("HumanoidRootPart")
+    character, hrp = WaitForCharacter()
     if not hrp then return nil, math.huge end
 
     closestATM = nil
@@ -5789,10 +5673,13 @@ function GetATM()
     for _, v in ipairs(Workspace.Map.ATMz:GetChildren()) do
         mainPart = v:FindFirstChild("MainPart")
         if mainPart then
-            atmDistance = (hrp.Position - mainPart.Position).Magnitude
-            if atmDistance < minDistance then
-                minDistance = atmDistance
-                closestATM = mainPart
+            usageCount = ATMUsage[mainPart] or 0
+            if usageCount < 2 then
+                atmDistance = (hrp.Position - mainPart.Position).Magnitude
+                if atmDistance < minDistance then
+                    minDistance = atmDistance
+                    closestATM = mainPart
+                end
             end
         end
     end
@@ -5800,73 +5687,61 @@ function GetATM()
 end
 
 function teleportSmoothly(targetPosition)
-    character = LocalPlayer.Character
-    if not character then return end
-    hrp = character:FindFirstChild("HumanoidRootPart")
+    character, hrp = WaitForCharacter()
     if not hrp then return end
+
     Teleporting = true
     stepSize = 3
     currentPos = hrp.Position
     direction = (targetPosition - currentPos).Unit
     while (targetPosition - currentPos).Magnitude > stepSize and AutoFarmEnabled do
+        character, hrp = WaitForCharacter()
+        if not hrp then
+            Teleporting = false
+            return
+        end
         hrp.CFrame = CFrame.new(currentPos + direction * stepSize)
         currentPos = currentPos + direction * stepSize
-        wait(0.1)
+        task.wait(0.1)
     end
-    hrp.CFrame = CFrame.new(targetPosition)
-    wait(0.5)
+    character, hrp = WaitForCharacter()
+    if hrp then
+        hrp.CFrame = CFrame.new(targetPosition)
+    end
+    task.wait(0.5)
     Teleporting = false
 end
 
 function teleportToNearestATM()
-    closestATM = GetATM()
+    closestATM, _ = GetATM()
     if closestATM then
         teleportSmoothly(closestATM.Position)
+        ATMUsage[closestATM] = (ATMUsage[closestATM] or 0) + 1
     end
 end
 
 function AutoFarm()
     while AutoFarmEnabled do
-        character = LocalPlayer.Character
-        if not character then
-            task.wait(1)
-            continue
-        end
-        hrp = character:FindFirstChild("HumanoidRootPart")
+        character, hrp = WaitForCharacter()
         if not hrp then
             task.wait(1)
             continue
         end
 
         nextAllowance = game:GetService("ReplicatedStorage").PlayerbaseData2[LocalPlayer.Name]:FindFirstChild("NextAllowance")
-        if hrp and nextAllowance and nextAllowance.Value == 0 then
+        if nextAllowance and nextAllowance.Value == 0 and not AutoClaimAllowanceCoolDown then
             ATM, distance = GetATM()
-            if ATM and not AutoClaimAllowanceCoolDown then
+            if ATM then
                 AutoClaimAllowanceCoolDown = true
                 teleportToNearestATM()
-                wait(0.5)
+                task.wait(0.5)
                 game:GetService("ReplicatedStorage").Events.CLMZALOW:InvokeServer(ATM)
-                wait(0.5)
+                task.wait(0.5)
                 AutoClaimAllowanceCoolDown = false
-                if not Teleporting then
-                    _, distance = GetATM()
-                    if type(distance) == "number" and distance <= 10 then
-                        EnableHiddenBody()
-                    end
-                end
             end
         end
 
-        if not Teleporting then
-            _, distance = GetATM()
-            if type(distance) == "number" and distance <= 10 then
-                EnableHiddenBody()
-            else
-                DisableHiddenBody()
-            end
-        end
-
-        wait(0.1)
+        task.wait(0.1)
     end
 end
 
@@ -5875,11 +5750,16 @@ function AutoRespawn()
         character = LocalPlayer.Character
         if character then
             humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Health <= 0 then
+            if humanoid and humanoid.Health <= 0 and not humanoid:GetAttribute("Respawning") then
+                humanoid:SetAttribute("Respawning", true)
                 DeathRespawn_Event:InvokeServer("KMG4R904")
+                task.wait(1)
+                if character then
+                    humanoid:SetAttribute("Respawning", false)
+                end
             end
         end
-        wait(1)
+        task.wait(1)
     end
 end
 
@@ -5887,9 +5767,7 @@ LocalPlayer.CharacterAdded:Connect(function(character)
     hrp = character:WaitForChild("HumanoidRootPart")
     humanoid = character:FindFirstChildOfClass("Humanoid")
     if humanoid then
-        humanoid.Died:Connect(function()
-            DisableHiddenBody()
-        end)
+        humanoid:SetAttribute("Respawning", false)
     end
     if AutoFarmEnabled then
         spawn(AutoFarm)
@@ -5902,9 +5780,6 @@ aatmToggle = FarmRight:AddToggle('AutoFarmToggle', {
     Default = false,
     Callback = function(Value)
         AutoFarmEnabled = Value
-        if not Value then
-            DisableHiddenBody()
-        end
         if AutoFarmEnabled then
             spawn(AutoFarm)
             spawn(AutoRespawn)
@@ -5963,17 +5838,22 @@ character = player.Character or player.CharacterAdded:Wait()
 humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 humanoid = character:WaitForChild("Humanoid")
 
-function randomString()
+enabled = false
+animation = Instance.new("Animation")
+animation.AnimationId = "rbxassetid://282574440"
+danceTrack = nil
+dysenc = {}
+temp = 1
+animpos = 1.755
+underground = -2.6
+
+floatName = ""
+for i = 1, 10 do
     chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    str = ""
-    for i = 1, 10 do
-        rand = math.random(1, #chars)
-        str = str .. chars:sub(rand, rand)
-    end
-    return str
+    rand = math.random(1, #chars)
+    floatName = floatName .. chars:sub(rand, rand)
 end
 
-floatName = randomString()
 floatPart = nil
 animationTrack = nil
 Noclipping = nil
@@ -5981,12 +5861,101 @@ FloatConnection = nil
 Clip = true
 hiddenEnabled = false
 
-function enableScript()
+function onCharacterAdded(char)
+    humanoid = char:WaitForChild("Humanoid")
+    humanoidRootPart = char:WaitForChild("HumanoidRootPart")
+    character = char
+    if Toggles.hiddenbodyToggle and Toggles.hiddenbodyToggle.Value then
+        if currentMethod == "New" then enableSpoofMethod()
+        elseif currentMethod == "Old" then enableHiddenBody()
+        end
+    end
+end
+
+if player.Character then
+    onCharacterAdded(player.Character)
+end
+
+player.CharacterAdded:Connect(onCharacterAdded)
+
+player.CharacterRemoving:Connect(function()
+    if danceTrack then
+        pcall(function()
+            danceTrack:Stop()
+            danceTrack:Destroy()
+        end)
+        danceTrack = nil
+        enabled = false
+    end
+    if hiddenEnabled then
+        if Noclipping then Noclipping:Disconnect() end
+        if FloatConnection then FloatConnection:Disconnect() end
+        if floatPart then floatPart:Destroy() end
+        if animationTrack then animationTrack:Stop() end
+        Clip = true
+        humanoidRootPart.CollisionGroup = "Default"
+        for _, child in pairs(character:GetDescendants()) do
+            if child:IsA("BasePart") then
+                child.CanCollide = true
+                child.Velocity = Vector3.new(0, 0, 0)
+                child.RotVelocity = Vector3.new(0, 0, 0)
+            end
+        end
+        humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+        wait(0.1)
+        humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        humanoid.PlatformStand = false
+        humanoidRootPart.Anchored = false
+        humanoid.Sit = false
+        humanoid.AutoRotate = true
+        hiddenEnabled = false
+    end
+end)
+
+function enableSpoofMethod()
+    enabled = true
+    danceTrack = humanoid:LoadAnimation(animation)
+    danceTrack.Looped = true
+    danceTrack.Priority = Enum.AnimationPriority.Action4
+    danceTrack:Play(0.1, 1, 0)
+    heartbeatConnection = RunService.Heartbeat:Connect(function()
+        temp = temp + 1
+        if enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            if danceTrack then
+                danceTrack.TimePosition = animpos
+            end
+            hrp = player.Character.HumanoidRootPart
+            dysenc[1] = hrp.CFrame
+            dysenc[2] = hrp.AssemblyLinearVelocity
+            spoofed = hrp.CFrame + Vector3.new(0, underground, 0)
+            hrp.CFrame = spoofed
+            RunService.RenderStepped:Wait()
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                hrp.CFrame = dysenc[1]
+                hrp.AssemblyLinearVelocity = dysenc[2]
+            end
+        end
+    end)
+end
+
+function disableSpoofMethod()
+    enabled = false
+    if danceTrack then
+        danceTrack:Stop()
+        danceTrack:Destroy()
+        danceTrack = nil
+    end
+    if heartbeatConnection then
+        heartbeatConnection:Disconnect()
+        heartbeatConnection = nil
+    end
+end
+
+function enableHiddenBody()
     if not hiddenEnabled then
         character = player.Character or player.CharacterAdded:Wait()
         humanoidRootPart = character:WaitForChild("HumanoidRootPart")
         humanoid = character:WaitForChild("Humanoid")
-        
         floatPart = Instance.new("Part")
         floatPart.Name = floatName
         floatPart.Size = Vector3.new(2, 0.2, 1.5)
@@ -5995,12 +5964,8 @@ function enableScript()
         floatPart.CanCollide = true
         floatPart.Parent = Workspace
         floatPart.CFrame = humanoidRootPart.CFrame * CFrame.new(0, -5.4, 0)
-
-        animation = Instance.new("Animation")
-        animation.AnimationId = "rbxassetid://282574440"
         animationTrack = humanoid:LoadAnimation(animation)
         animationTrack:Play()
-
         humanoidRootPart.CollisionGroup = "RagdollCollide2"
         Clip = false
         Noclipping = RunService.Stepped:Connect(function()
@@ -6012,13 +5977,11 @@ function enableScript()
                 end
             end
         end)
-
         humanoidRootPart.CFrame = CFrame.new(
             humanoidRootPart.Position.X,
             floatPart.Position.Y - 5.4,
             humanoidRootPart.Position.Z
         )
-
         FloatConnection = RunService.Heartbeat:Connect(function()
             if floatPart and humanoidRootPart and hiddenEnabled then
                 floatPart.CFrame = CFrame.new(
@@ -6039,24 +6002,12 @@ function enableScript()
     end
 end
 
-function disableScript()
+function disableHiddenBody()
     if hiddenEnabled then
-        if Noclipping then
-            Noclipping:Disconnect()
-            Noclipping = nil
-        end
-        if FloatConnection then
-            FloatConnection:Disconnect()
-            FloatConnection = nil
-        end
-        if floatPart then
-            floatPart:Destroy()
-            floatPart = nil
-        end
-        if animationTrack then
-            animationTrack:Stop()
-            animationTrack = nil
-        end
+        if Noclipping then Noclipping:Disconnect() end
+        if FloatConnection then FloatConnection:Disconnect() end
+        if floatPart then floatPart:Destroy() end
+        if animationTrack then animationTrack:Stop() end
         Clip = true
         humanoidRootPart.CollisionGroup = "Default"
         for _, child in pairs(character:GetDescendants()) do
@@ -6077,33 +6028,54 @@ function disableScript()
     end
 end
 
-MiscLeft:AddToggle('HiddenToggle', {
-    Text = "Hidden Body",
+currentMethod = "New"
+
+MiscLeft:AddDropdown('hiddenMethodSelector', {
+    Values = { 'New', 'Old' },
+    Default = 1,
+    Text = 'Select Method',
+    Tooltip = 'Choose the Hidden body method',
+    Callback = function(Value)
+        if Toggles.hiddenbodyToggle and Toggles.hiddenbodyToggle.Value then
+            if currentMethod == "New" then disableSpoofMethod()
+            elseif currentMethod == "Old" then disableHiddenBody()
+            end
+            currentMethod = Value
+            if Value == "New" then enableSpoofMethod()
+            elseif Value == "Old" then enableHiddenBody()
+            end
+        else
+            currentMethod = Value
+        end
+    end
+})
+
+MiscLeft:AddToggle('hiddenbodyToggle', {
+    Text = 'Hidden Body',
     Default = false,
     Callback = function(Value)
         if Value then
-            enableScript()
+            if currentMethod == "New" then enableSpoofMethod()
+            elseif currentMethod == "Old" then enableHiddenBody()
+            end
         else
-            disableScript()
+            if currentMethod == "New" then disableSpoofMethod()
+            elseif currentMethod == "Old" then disableHiddenBody()
+            end
         end
-    end,
-}):AddKeyPicker("HiddenKey", {
-    Default = "None", 
+    end
+}):AddKeyPicker('HiddenBodyKey', {
+    Default = 'None',
     SyncToggleState = true,
-    Mode = "Toggle",
-    Text = "Hidden Body",
+    Mode = 'Toggle',
+    Text = 'Hidden Body',
     Callback = function()
-    end,
+    end
 })
 
 humanoid.Died:Connect(function()
-    disableScript()
-    player.CharacterAdded:Wait()
-    character = player.Character
-    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-    humanoid = character:WaitForChild("Humanoid")
-    if Toggles.HiddenToggle.Value then
-        enableScript()
+    if currentMethod == "New" then disableSpoofMethod()
+    elseif currentMethod == "Old" then disableHiddenBody()
     end
 end)
 
