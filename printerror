@@ -39,6 +39,8 @@ SectionSettings = {
         TargetPart = "Head",
         CheckWhitelist = false,
         CheckWall = false,
+        UseHitChance = false,
+        HitChance = 80,
         CheckTeam = false,
         DrawCircle = false,
         DrawColor = Color3.fromRGB(255, 0, 0)
@@ -619,7 +621,25 @@ function UrTargetFunc()
         if player == game:GetService("Players").LocalPlayer or not player.Character or player.Character:FindFirstChildOfClass("ForceField") then continue end
         if SectionSettings.SilentAim.CheckWhitelist and GlobalWhiteList[player.Name] then continue end
         if SectionSettings.SilentAim.CheckTeam and player.Team == game:GetService("Players").LocalPlayer.Team then continue end
-        targetPart = SectionSettings.SilentAim.TargetPart == "Random" and player.Character:FindFirstChild(ValidSilentTargetParts[math.random(1, #ValidSilentTargetParts)]) or player.Character:FindFirstChild(SectionSettings.SilentAim.TargetPart or "Head")
+        targetPart = nil
+        if SectionSettings.SilentAim.TargetPart == "Closest" then
+            minPartDistance = math.huge
+            for _, partName in ipairs(ValidSilentTargetParts) do
+                part = player.Character:FindFirstChild(partName)
+                if part then
+                    screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(part.Position)
+                    if onScreen then
+                        distance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+                        if distance < minPartDistance then
+                            minPartDistance = distance
+                            targetPart = part
+                        end
+                    end
+                end
+            end
+        else
+            targetPart = SectionSettings.SilentAim.TargetPart == "Random" and player.Character:FindFirstChild(ValidSilentTargetParts[math.random(1, #ValidSilentTargetParts)]) or player.Character:FindFirstChild(SectionSettings.SilentAim.TargetPart or "Head")
+        end
         if targetPart then
             if SectionSettings.SilentAim.CheckWall and #workspace.CurrentCamera:GetPartsObscuringTarget({targetPart.Position}, {workspace.CurrentCamera, game:GetService("Players").LocalPlayer.Character, player.Character}) > 0 then continue end
             screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(targetPart.Position)
@@ -627,6 +647,11 @@ function UrTargetFunc()
                 minDistance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
                 closestPlayer = player
             end
+        end
+    end
+    if closestPlayer and SectionSettings.SilentAim.UseHitChance then
+        if math.random(1, 100) > SectionSettings.SilentAim.HitChance then
+            return nil
         end
     end
     return closestPlayer
@@ -661,7 +686,25 @@ CombatLeft2:AddToggle('SilentAimToggle', {
                 if not functions.silentaimF or not Gun or not currentTarget or not currentTarget.Character or currentTarget.Character:FindFirstChildOfClass("ForceField") then return end
                 playerTool = game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Tool")
                 if not playerTool or Gun ~= playerTool then return end
-                HitPart = SectionSettings.SilentAim.TargetPart == "Random" and currentTarget.Character:FindFirstChild(ValidSilentTargetParts[math.random(1, #ValidSilentTargetParts)]) or currentTarget.Character:FindFirstChild(SectionSettings.SilentAim.TargetPart or "Head")
+                HitPart = nil
+                if SectionSettings.SilentAim.TargetPart == "Closest" then
+                    minPartDistance = math.huge
+                    for _, partName in ipairs(ValidSilentTargetParts) do
+                        part = currentTarget.Character:FindFirstChild(partName)
+                        if part then
+                            screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(part.Position)
+                            if onScreen then
+                                distance = (Vector2.new(mousePos.X, mousePos.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+                                if distance < minPartDistance then
+                                    minPartDistance = distance
+                                    HitPart = part
+                                end
+                            end
+                        end
+                    end
+                else
+                    HitPart = SectionSettings.SilentAim.TargetPart == "Random" and currentTarget.Character:FindFirstChild(ValidSilentTargetParts[math.random(1, #ValidSilentTargetParts)]) or currentTarget.Character:FindFirstChild(SectionSettings.SilentAim.TargetPart or "Head")
+                end
                 if not HitPart then return end
                 HitPos = HitPart.Position
                 Bullets = {}
@@ -694,6 +737,14 @@ CombatLeft2:AddToggle('SilentAimDrawCircle', {
     Callback = function(Value)
         SectionSettings.SilentAim.DrawCircle = Value
         UpdateCircle()
+    end
+})
+
+CombatLeft2:AddToggle('SilentAimUseHitChance', {
+    Text = 'HitChance',
+    Default = false,
+    Callback = function(Value)
+        SectionSettings.SilentAim.UseHitChance = Value
     end
 })
 
@@ -733,9 +784,20 @@ CombatLeft2:AddSlider('SilentAimFOV', {
     end
 })
 
+CombatLeft2:AddSlider('SilentAimHitChance', {
+    Text = 'HitChance',
+    Default = 80,
+    Min = 0,
+    Max = 100,
+    Rounding = 0,
+    Callback = function(Value)
+        SectionSettings.SilentAim.HitChance = Value
+    end
+})
+
 CombatLeft2:AddDropdown('SilentAimTargetPart', {
-    Values = {'Random', 'Head', 'Torso', 'Left Arm', 'Right Arm', 'Left Leg', 'Right Leg'},
-    Default = 2,
+    Values = {'Closest', 'Random', 'Head', 'Torso', 'Left Arm', 'Right Arm', 'Left Leg', 'Right Leg'},
+    Default = 3,
     Multi = false,
     Text = 'Hit Part',
     Callback = function(Value)
@@ -4050,6 +4112,41 @@ HUDToggle:AddColorPicker('HUDColorPicker', {
     end
 })
 
+freecamEnabled = false
+freecamSpeed = 50
+cam = workspace.CurrentCamera
+UIS = game:GetService("UserInputService")
+RS = game:GetService("RunService")
+onMobile = not UIS.KeyboardEnabled
+keysDown = {}
+rotating = false
+
+freecamToggle = VisualsLeft2:AddToggle("FreecamToggle", {
+    Text = "Freecam",
+    Default = false,
+    Callback = function(value)
+        freecamEnabled = value
+        if value then
+            cam.CameraType = Enum.CameraType.Scriptable
+            if game.Players.LocalPlayer.Character then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.Anchored = true
+            end
+        else
+            RS:UnbindFromRenderStep("Freecam")
+            cam.CameraType = Enum.CameraType.Custom
+            if game.Players.LocalPlayer.Character then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.Anchored = false
+            end
+        end
+    end,
+}):AddKeyPicker("FreecamKey", {
+    Default = "None", 
+    SyncToggleState = true,
+    Mode = "Toggle",
+    Text = "Freecam",
+    Callback = function() end,
+})
+
 blur = Instance.new("BlurEffect", game:GetService("Lighting"))
 blur.Size = 0
 
@@ -4072,6 +4169,175 @@ VisualsLeft2:AddToggle('BlurToggle', {
             end
             blur.Size = 0
         end
+    end
+})
+
+Players = game:GetService("Players")
+LocalPlayer = Players.LocalPlayer
+Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+Humanoid = Character:WaitForChild("Humanoid")
+IsEnabled = false
+SelectedEffect = "Explosion"
+JumpConnection = nil
+
+function createExplosion(position)
+    local explosion = Instance.new("Explosion")
+    explosion.Position = position
+    explosion.BlastRadius = 10
+    explosion.BlastPressure = 50
+    explosion.DestroyJointRadiusPercent = 0
+    explosion.Parent = game.Workspace
+end
+
+function createParticleEffect(position)
+    local particleEmitter = Instance.new("ParticleEmitter")
+    particleEmitter.Texture = "rbxassetid://243728913"
+    particleEmitter.Size = NumberSequence.new(1, 0)
+    particleEmitter.Transparency = NumberSequence.new(0, 1)
+    particleEmitter.Lifetime = NumberRange.new(0.5, 1)
+    particleEmitter.Rate = 100
+    particleEmitter.Speed = NumberRange.new(10)
+    local part = Instance.new("Part")
+    particleEmitter.Parent = part
+    part.Position = position
+    part.Anchored = true
+    part.CanCollide = false
+    part.Transparency = 1
+    part.Parent = game.Workspace
+    wait(1)
+    if part.Parent then
+        part:Destroy()
+    end
+end
+
+function createShockwave(position)
+    local part = Instance.new("Part")
+    part.Position = position
+    part.Size = Vector3.new(0.5, 0.5, 0.5)
+    part.Anchored = true
+    part.CanCollide = false
+    part.Transparency = 0.4
+    part.BrickColor = BrickColor.new("Cyan")
+    part.Material = Enum.Material.Neon
+    part.Parent = game.Workspace
+    for i = 1, 30 do
+        part.Size = part.Size + Vector3.new(0.5, 0.1, 0.5)
+        part.Transparency = part.Transparency + 0.02
+        wait(0.02)
+    end
+    if part.Parent then
+        part:Destroy()
+    end
+end
+
+function createFireBurst(position)
+    local fire = Instance.new("Fire")
+    fire.Size = 8
+    fire.Heat = 15
+    local part = Instance.new("Part")
+    fire.Parent = part
+    part.Position = position
+    part.Anchored = true
+    part.CanCollide = false
+    part.Transparency = 1
+    part.Parent = game.Workspace
+    wait(0.6)
+    for i = 1, 5 do
+        fire.Size = fire.Size - 1.6
+        fire.Heat = fire.Heat - 3
+        wait(0.02)
+    end
+    if part.Parent then
+        part:Destroy()
+    end
+end
+
+function createMeteorTrail(position)
+    local part = Instance.new("Part")
+    part.Position = position + Vector3.new(0, 5, 0)
+    part.Size = Vector3.new(1, 1, 1)
+    part.Anchored = false
+    part.CanCollide = false
+    part.BrickColor = BrickColor.new("Really red")
+    part.Material = Enum.Material.Neon
+    part.Parent = game.Workspace
+    local fire = Instance.new("Fire")
+    fire.Size = 5
+    fire.Parent = part
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(math.huge, 0, math.huge)
+    bv.Velocity = Vector3.new(math.random(-10, 10), 0, math.random(-10, 10))
+    bv.Parent = part
+    wait(0.8)
+    if part.Parent then
+        part:Destroy()
+    end
+end
+
+function createGravityPulse(position)
+    local part = Instance.new("Part")
+    part.Position = position
+    part.Size = Vector3.new(4, 4, 4)
+    part.Anchored = true
+    part.CanCollide = false
+    part.Transparency = 0.5
+    part.BrickColor = BrickColor.new("Deep blue")
+    part.Material = Enum.Material.Neon
+    part.Parent = game.Workspace
+    for i = 1, 15 do
+        part.Size = part.Size - Vector3.new(0.2, 0.2, 0.2)
+        part.Transparency = part.Transparency + 0.03
+        wait(0.03)
+    end
+    if part.Parent then
+        part:Destroy()
+    end
+end
+
+function onJump()
+    if not IsEnabled then return end
+    rootPart = Character:FindFirstChild("HumanoidRootPart")
+    if rootPart then
+        position = rootPart.Position - Vector3.new(0, 3, 0)
+        if SelectedEffect == "Explosion" then
+            createExplosion(position)
+            createParticleEffect(position)
+        elseif SelectedEffect == "Shockwave" then
+            createShockwave(position)
+        elseif SelectedEffect == "FireBurst" then
+            createFireBurst(position)
+        elseif SelectedEffect == "MeteorTrail" then
+            createMeteorTrail(position)
+        elseif SelectedEffect == "GravityPulse" then
+            createGravityPulse(position)
+        end
+    end
+end
+
+function setupJumpConnection()
+    if JumpConnection then
+        JumpConnection:Disconnect()
+    end
+    JumpConnection = Humanoid.StateChanged:Connect(function(oldState, newState)
+        if newState == Enum.HumanoidStateType.Jumping then
+            onJump()
+        end
+    end)
+end
+
+setupJumpConnection()
+
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+    Character = newCharacter
+    Humanoid = Character:WaitForChild("Humanoid")
+    setupJumpConnection()
+end)
+
+VisualsLeft2:AddToggle('JumpEffectToggle', {
+    Text = 'JumpCircle',
+    Default = false,
+    Callback = function(Value)
+        IsEnabled = Value
     end
 })
 
@@ -4146,6 +4412,16 @@ VisualsLeft2:AddDropdown('HUDFontDropdown', {
     end
 })
 
+VisualsLeft2:AddDropdown('EffectDropdown', {
+    Values = { 'Explosion', 'Shockwave', 'FireBurst', 'MeteorTrail', 'GravityPulse' },
+    Default = 1,
+    Multi = false,
+    Text = 'Select Effect JumpCircle',
+    Callback = function(Value)
+        SelectedEffect = Value
+    end
+})
+
 VisualsLeft2:AddSlider('HeadshotVolume', {
     Text = 'Headshot Volume',
     Default = HeadshotSettings.Volume,
@@ -4156,6 +4432,129 @@ VisualsLeft2:AddSlider('HeadshotVolume', {
         HeadshotSettings.Volume = Value
     end
 })
+
+VisualsLeft2:AddSlider("SpeedSlider", {
+    Text = "Freecam Speed",
+    Default = 50,
+    Min = 50,
+    Max = 500,
+    Rounding = 1,
+    Callback = function(value)
+        freecamSpeed = value
+    end
+})
+
+RS.RenderStepped:Connect(function()
+    if not freecamEnabled or not game.Players.LocalPlayer.Character or not game.Players.LocalPlayer.Character.Humanoid or game.Players.LocalPlayer.Character.Humanoid.Health <= 0 then 
+        if freecamEnabled then
+            freecamEnabled = false
+            freecamToggle:SetValue(false)
+            cam.CameraType = Enum.CameraType.Custom
+            if game.Players.LocalPlayer.Character then
+                game.Players.LocalPlayer.Character.HumanoidRootPart.Anchored = false
+            end
+        end
+        return 
+    end
+    if rotating then
+        delta = UIS:GetMouseDelta()
+        cf = cam.CFrame
+        yAngle = cf:ToEulerAngles(Enum.RotationOrder.YZX)
+        newAmount = math.deg(yAngle)+delta.Y
+        if newAmount > 65 or newAmount < -65 then
+            if not (yAngle<0 and delta.Y<0) and not (yAngle>0 and delta.Y>0) then
+                delta = Vector2.new(delta.X,0)
+            end 
+        end
+        cf *= CFrame.Angles(-math.rad(delta.Y),0,0)
+        cf = CFrame.Angles(0,-math.rad(delta.X),0) * (cf - cf.Position) + cf.Position
+        cf = CFrame.lookAt(cf.Position, cf.Position + cf.LookVector)
+        if delta ~= Vector2.new(0,0) then cam.CFrame = cam.CFrame:Lerp(cf,freecamSpeed/1000) end
+        UIS.MouseBehavior = Enum.MouseBehavior.LockCurrentPosition
+    else
+        UIS.MouseBehavior = Enum.MouseBehavior.Default
+    end
+    if keysDown["Enum.KeyCode.W"] then
+        cam.CFrame *= CFrame.new(Vector3.new(0,0,-freecamSpeed/100))
+    end
+    if keysDown["Enum.KeyCode.A"] then
+        cam.CFrame *= CFrame.new(Vector3.new(-freecamSpeed/100,0,0))
+    end
+    if keysDown["Enum.KeyCode.S"] then
+        cam.CFrame *= CFrame.new(Vector3.new(0,0,freecamSpeed/100))
+    end
+    if keysDown["Enum.KeyCode.D"] then
+        cam.CFrame *= CFrame.new(Vector3.new(freecamSpeed/100,0,0))
+    end
+end)
+
+validKeys = {"Enum.KeyCode.W","Enum.KeyCode.A","Enum.KeyCode.S","Enum.KeyCode.D"}
+
+UIS.InputBegan:Connect(function(Input)
+    for i, key in pairs(validKeys) do
+        if key == tostring(Input.KeyCode) then
+            keysDown[key] = true
+        end
+    end
+    if Input.UserInputType == Enum.UserInputType.MouseButton2 or (Input.UserInputType == Enum.UserInputType.Touch and UIS:GetMouseLocation().X>(cam.ViewportSize.X/2)) then
+        rotating = true
+    end
+    if Input.UserInputType == Enum.UserInputType.Touch then
+        if Input.Position.X < cam.ViewportSize.X/2 then
+            touchPos = Input.Position
+        end
+    end
+end)
+
+UIS.InputEnded:Connect(function(Input)
+    for key, v in pairs(keysDown) do
+        if key == tostring(Input.KeyCode) then
+            keysDown[key] = false
+        end
+    end
+    if Input.UserInputType == Enum.UserInputType.MouseButton2 or (Input.UserInputType == Enum.UserInputType.Touch and UIS:GetMouseLocation().X>(cam.ViewportSize.X/2)) then
+        rotating = false
+    end
+    if Input.UserInputType == Enum.UserInputType.Touch and touchPos then
+        if Input.Position.X < cam.ViewportSize.X/2 then
+            touchPos = nil
+            keysDown["Enum.KeyCode.W"] = false
+            keysDown["Enum.KeyCode.A"] = false
+            keysDown["Enum.KeyCode.S"] = false
+            keysDown["Enum.KeyCode.D"] = false
+        end
+    end
+end)
+
+UIS.TouchMoved:Connect(function(input)
+    if touchPos then
+        if input.Position.X < cam.ViewportSize.X/2 then
+            if input.Position.Y < touchPos.Y then
+                keysDown["Enum.KeyCode.W"] = true
+                keysDown["Enum.KeyCode.S"] = false
+            else
+                keysDown["Enum.KeyCode.W"] = false
+                keysDown["Enum.KeyCode.S"] = true
+            end
+            if input.Position.X < (touchPos.X-15) then
+                keysDown["Enum.KeyCode.A"] = true
+                keysDown["Enum.KeyCode.D"] = false
+            elseif input.Position.X > (touchPos.X+15) then
+                keysDown["Enum.KeyCode.A"] = false
+                keysDown["Enum.KeyCode.D"] = true
+            else
+                keysDown["Enum.KeyCode.A"] = false
+                keysDown["Enum.KeyCode.D"] = false
+            end
+        end
+    end
+end)
+
+game.Players.LocalPlayer.CharacterAdded:Connect(function()
+    if freecamEnabled and game.Players.LocalPlayer.Character then
+        game.Players.LocalPlayer.Character.HumanoidRootPart.Anchored = true
+    end
+end)
 
 VisualsLeft2:AddSlider('CameraDistanceSlider', {
     Text = "Camera Distance",
